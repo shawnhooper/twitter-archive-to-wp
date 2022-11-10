@@ -30,6 +30,7 @@ class BirdSiteArchive {
 	public function hooks() : void {
 		add_action( 'cli_init', [ $this, 'register_cli_commands' ] );
 		add_action( 'init', [ $this, 'create_twitter_post_type' ] );
+		add_filter( 'init', [$this, 'create_hashtag_taxonomy']);
 		add_filter( 'manage_tweet_posts_columns', [$this, 'set_custom_columns'] );
 		add_filter( 'manage_tweet_posts_custom_column', [$this, 'populate_tweet_columns'], 10, 2 );
 	}
@@ -38,7 +39,38 @@ class BirdSiteArchive {
 		WP_CLI::add_command( 'import-twitter', [$this, 'handleCommand']);
 	}
 
-	public function create_twitter_post_type() {
+	public function create_hashtag_taxonomy() {
+		// Add new taxonomy, NOT hierarchical (like tags)
+		$labels = array(
+			'name' => _x( 'Hashtags', 'taxonomy general name' ),
+			'singular_name' => _x( 'Hashtag', 'taxonomy singular name' ),
+			'search_items' =>  __( 'Search Hashtags' ),
+			'popular_items' => __( 'Popular Hashtags' ),
+			'all_items' => __( 'All Hashtags' ),
+			'parent_item' => null,
+			'parent_item_colon' => null,
+			'edit_item' => __( 'Edit Hashtag' ),
+			'update_item' => __( 'Update Hashtag' ),
+			'add_new_item' => __( 'Add New Hashtag' ),
+			'new_item_name' => __( 'New Hashtag Name' ),
+			'separate_items_with_commas' => __( 'Separate tags with commas' ),
+			'add_or_remove_items' => __( 'Add or remove tags' ),
+			'choose_from_most_used' => __( 'Choose from the most used tags' ),
+			'menu_name' => __( 'Hashtags' ),
+		);
+
+		register_taxonomy('hashtags','tweet',array(
+			'hierarchical' => false,
+			'labels' => $labels,
+			'show_ui' => true,
+			'query_var' => true,
+			'rewrite' => array( 'slug' => 'hashtag' ),
+			'show_in_rest' => true, // add support for Gutenberg editor
+		));
+	}
+
+	public function create_twitter_post_type(): void
+	{
 		register_post_type( 'tweet',
 			// CPT Options
 			array(
@@ -50,7 +82,7 @@ class BirdSiteArchive {
 				'has_archive' => true,
 				'rewrite' => array('slug' => 'tweets'),
 				'show_in_rest' => true,
-
+				'taxonomies' => ['hashtags']
 			)
 		);
 	}
@@ -102,6 +134,14 @@ class BirdSiteArchive {
 
 		update_post_meta($post_id, '_retweet_count', $tweet->tweet->retweet_count );
 		update_post_meta($post_id, '_favorite_count', $tweet->tweet->favorite_count );
+
+		if (isset($tweet->tweet->entities->hashtags)) {
+			$hashtags = [];
+			foreach($tweet->tweet->entities->hashtags as $hashtag) {
+				$hashtags[] = $hashtag->text;
+			}
+			wp_set_post_terms($post_id, $hashtags, 'hashtags', true);
+		}
 
 		return $post_id;
 
