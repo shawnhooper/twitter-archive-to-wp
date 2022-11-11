@@ -1,8 +1,8 @@
 <?php
 /**
- * Plugin Name:     Import Twitter Archive for WP-CLI
- * Plugin URI:      PLUGIN SITE HERE
- * Description:     X
+ * Plugin Name:     Import Twitter Data Archive
+ * Plugin URI:      https://github.com/shawnhooper/twitter-archive-to-wp
+ * Description:     Imports Twitter Archive as a custom post type
  * Author:          Shawn M. Hooper
  * Author URI:      https://shawnhooper.ca/
  * Text Domain:     birdsite-archive
