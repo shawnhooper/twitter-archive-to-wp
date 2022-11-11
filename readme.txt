@@ -36,7 +36,7 @@ This plugin doesn't need more than that at the moment.
 1. Install and Activate this plugin
 1. Unzip your Twitter Archive
 1. Copy the data/ folder from the Twitter archive to the wp-contents/uploads/twitter-archive folder. (read privacy note above)
-1. Run `wp import-twitter <path_to_twitter_data>`
+1. Run `wp import-twitter --author=<post_author>` where <post_author> is your WordPress User ID
 
 == Starting Over ==
 
@@ -48,3 +48,4 @@ If you need to start over, the these WP-CLI commadns to delete the data the plug
 = 0.5.0 =
 * Creates custom post type and taxonomy
 * Imports tweet and sets hashtags
+* Expands t.co URLs
