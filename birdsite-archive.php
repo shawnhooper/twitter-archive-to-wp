@@ -122,6 +122,7 @@ class BirdSiteArchive {
 		$created_at = DateTime::createFromFormat('D M d H:i:s O Y', $tweet->tweet->created_at)->format('c');
 
 		$args = [
+			'post_name' => $tweet->tweet->id,
 			'post_type' => 'tweet',
 			'post_status' => 'publish',
 			'post_title' => $tweet->tweet->full_text,
