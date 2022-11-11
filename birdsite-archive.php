@@ -134,7 +134,12 @@ class BirdSiteArchive {
 
 		update_post_meta($post_id, '_retweet_count', $tweet->tweet->retweet_count );
 		update_post_meta($post_id, '_favorite_count', $tweet->tweet->favorite_count );
-
+		if (isset($tweet->tweet->in_reply_to_status_id_str)) {
+			update_post_meta($post_id, '_in_reply_to_status_id_str', $tweet->tweet->in_reply_to_status_id_str );
+		}
+		if (isset($tweet->tweet->in_reply_to_screen_name)) {
+			update_post_meta($post_id, '_in_reply_to_screen_name', $tweet->tweet->in_reply_to_screen_name );
+		}
 		if (isset($tweet->tweet->entities->hashtags)) {
 			$hashtags = [];
 			foreach($tweet->tweet->entities->hashtags as $hashtag) {
