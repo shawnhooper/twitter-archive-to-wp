@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:     Archive Twitter to WP
+ * Plugin Name:     Import Twitter Archive for WP-CLI
  * Plugin URI:      PLUGIN SITE HERE
  * Description:     X
  * Author:          Shawn M. Hooper
