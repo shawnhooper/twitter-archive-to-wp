@@ -39,7 +39,8 @@ class BirdSiteArchive {
 		WP_CLI::add_command( 'import-twitter', [$this, 'handleCommand']);
 	}
 
-	public function create_hashtag_taxonomy() {
+	public function create_hashtag_taxonomy(): void
+	{
 		// Add new taxonomy, NOT hierarchical (like tags)
 		$labels = array(
 			'name' => _x( 'Hashtags', 'taxonomy general name' ),
@@ -59,7 +60,7 @@ class BirdSiteArchive {
 			'menu_name' => __( 'Hashtags' ),
 		);
 
-		register_taxonomy('hashtags','tweet',array(
+		register_taxonomy('birdsite_hashtags','tweet',array(
 			'hierarchical' => false,
 			'labels' => $labels,
 			'show_ui' => true,
@@ -71,7 +72,7 @@ class BirdSiteArchive {
 
 	public function create_twitter_post_type(): void
 	{
-		register_post_type( 'tweet',
+		register_post_type( 'birdsite_tweet',
 			// CPT Options
 			array(
 				'labels' => array(
@@ -82,7 +83,7 @@ class BirdSiteArchive {
 				'has_archive' => true,
 				'rewrite' => array('slug' => 'tweets'),
 				'show_in_rest' => true,
-				'taxonomies' => ['hashtags']
+				'taxonomies' => ['birdsite_hashtags']
 			)
 		);
 	}
@@ -106,8 +107,8 @@ class BirdSiteArchive {
 	/**
 	 * @throws JsonException
 	 */
-	public function get_tweet_array() {
-		$tweets = file_get_contents(ABSPATH . 'wp-content/twitter-archive/tweets.js');
+	public function get_tweet_array() : array {
+		$tweets = file_get_contents(ABSPATH . 'wp-content/birdsite-archive/tweets.js');
 		$tweets = str_replace("window.YTD.tweets.part0 = ", '', $tweets);
 		return json_decode($tweets, false, 512, JSON_THROW_ON_ERROR);
 	}
@@ -123,7 +124,7 @@ class BirdSiteArchive {
 
 		$args = [
 			'post_name' => $tweet->tweet->id,
-			'post_type' => 'tweet',
+			'post_type' => 'birdsite_tweet',
 			'post_status' => 'publish',
 			'post_title' => $tweet->tweet->full_text,
 			'post_content' => json_encode($tweet, JSON_THROW_ON_ERROR),
@@ -146,14 +147,15 @@ class BirdSiteArchive {
 			foreach($tweet->tweet->entities->hashtags as $hashtag) {
 				$hashtags[] = $hashtag->text;
 			}
-			wp_set_post_terms($post_id, $hashtags, 'hashtags', true);
+			wp_set_post_terms($post_id, $hashtags, 'birdsite_hashtags', true);
 		}
 
 		return $post_id;
 
 	}
 
-	public function set_custom_columns(array $columns) {
+	public function set_custom_columns(array $columns) : array
+	{
 		unset($columns['title']);
 		$columns['title'] = __( 'Tweet', 'birdsite_archive' );
 		$columns['favorite_count'] = __( 'Likes', 'birdsite_archive' );
