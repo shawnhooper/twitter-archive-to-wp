@@ -45,6 +45,12 @@ If you need to start over, the these WP-CLI commadns to delete the data the plug
 1. wp term list birdsite_hashtag --field=term_id | xargs wp term delete birdsite_hashtag
 1. wp post delete $(wp post list --post_type='birdsite_tweet' --format=ids) --force
 
+== Screenshots ==
+
+1. Tweets created as posts
+
+== Changelog ==
+
 = 0.5.0 =
 * Creates custom post type and taxonomy
 * Imports tweet and sets hashtags
