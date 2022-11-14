@@ -73,6 +73,7 @@ class Import_Twitter_Command {
 		if (isset($tweet->tweet->in_reply_to_status_id_str) && $skip_replies) {
 			WP_CLI::line("Skipping Reply Tweet");
 			$this->tweets_skipped++;
+			return 0;
 		}
 
 
