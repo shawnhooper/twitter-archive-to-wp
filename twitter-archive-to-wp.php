@@ -24,7 +24,7 @@ class BirdSiteArchive {
 	 * Hook this plugin into WordPress' actions & filters
 	 */
 	public function hooks() : void {
-		if (defined('WP_CLI')) {
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			include_once('classes/import-twitter-command.php');
 			$cli_command = new Import_Twitter_Command();
 			WP_CLI::add_command( 'import-twitter', $cli_command );
