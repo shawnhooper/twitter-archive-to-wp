@@ -6,6 +6,9 @@ use \WP_CLI;
 class Tweet_Post_Type {
 
 	public function wordpress_hooks() {
+		if ( ! $this->setHasTweets()){
+			return;
+		}
 		add_action( 'init', [ $this, 'create_twitter_post_type' ] );
 		add_filter( 'init', [$this, 'create_hashtag_taxonomy']);
 		add_filter( 'manage_birdsite_tweet_posts_columns', [$this, 'set_custom_columns'] );
@@ -14,9 +17,6 @@ class Tweet_Post_Type {
 
 	public function create_hashtag_taxonomy(): void
 	{
-		if ( ! $this->setHasTweets()){
-			return;
-		}
 
 		// Add new taxonomy, NOT hierarchical (like tags)
 		$labels = array(
