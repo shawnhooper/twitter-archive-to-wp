@@ -22,8 +22,6 @@ use const ABSPATH;
 
 class BirdSiteArchive {
 
-	private int $tweets_processed = 0;
-
 	/**
 	 * Hook this plugin into WordPress' actions & filters
 	 */

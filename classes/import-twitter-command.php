@@ -5,6 +5,9 @@ use \WP_CLI;
 
 class Import_Twitter_Command {
 
+	private int $tweets_processed = 0;
+	private int $tweets_skipped = 0;
+
 	/**
 	 * Imports Twitter Data archive to WordPress
 	 *
@@ -12,6 +15,9 @@ class Import_Twitter_Command {
 	 *
 	 * <post_author>
 	 * : The ID of the user to mark as the author of the tweets
+	 *
+	 * [--skip-replies]
+	 * : Skip tweets that are replies to someone else
 	 *
 	 * ---
 	 *
@@ -21,8 +27,10 @@ class Import_Twitter_Command {
 	 *
 	 * @when after_wp_load
 	 */
-	public function __invoke($args) : void {
+	public function __invoke($args, $assoc_args) : void {
 		$post_author_id = (int)$args[0];
+
+		$skip_replies = isset($assoc_args['skip-replies']);
 
 		if ($post_author_id === null || $post_author_id === 0) {
 			WP_CLI::error('Error: invalid post author ID');
@@ -35,8 +43,10 @@ class Import_Twitter_Command {
 		WP_CLI::line('Starting Import of ' . count($tweets) . ' tweets');
 
 		foreach($tweets as $tweet) {
-			$this->process_tweet($tweet, $total_tweets, $post_author_id);
+			$this->process_tweet($tweet, $total_tweets, $post_author_id, $skip_replies);
 		}
+
+		WP_CLI::success('Import Complete - ' . $this->tweets_processed . ' tweets processed, ' . $skip_replies . 'skipped');
 	}
 
 	/**
@@ -55,9 +65,16 @@ class Import_Twitter_Command {
 	 * @return int
 	 * @throws JsonException
 	 */
-	public function process_tweet(\stdClass $tweet, int $total_tweets, int $post_author) : int {
+	public function process_tweet(\stdClass $tweet, int $total_tweets, int $post_author, bool $skip_replies) : int {
 		$this->tweets_processed++;
+
 		WP_CLI::line("Processing Tweet $this->tweets_processed of $total_tweets");
+
+		if (isset($tweet->tweet->in_reply_to_status_id_str) && $skip_replies) {
+			WP_CLI::line("Skipping Reply Tweet");
+			$this->tweets_skipped++;
+		}
+
 
 		$created_at = \DateTime::createFromFormat('D M d H:i:s O Y', $tweet->tweet->created_at)->format('c');
 
