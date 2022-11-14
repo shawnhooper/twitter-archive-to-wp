@@ -5,7 +5,7 @@ Tags: twitter, archive, wp-cli, import
 Requires at least: 6.0.0
 Tested up to: 6.1
 Requires PHP: 7.4.0
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -51,7 +51,12 @@ If you need to start over, the these WP-CLI commadns to delete the data the plug
 
 == Changelog ==
 
-= 0.5.0 =
+= 1.1.0 =
+* Ability to skip your replies to others from import using --slip-replies
+* Moved WP-CLI command into it's own class
+* Hide UI for Tweets if no import has been done
+
+= 1.0.0 =
 * Creates custom post type and taxonomy
 * Imports tweet and sets hashtags
 * Expands t.co URLs
