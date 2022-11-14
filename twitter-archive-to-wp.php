@@ -22,6 +22,8 @@ use const ABSPATH;
 
 class BirdSiteArchive {
 
+	private ?bool $has_tweets = null;
+
 	/**
 	 * Hook this plugin into WordPress' actions & filters
 	 */
@@ -32,14 +34,20 @@ class BirdSiteArchive {
 			WP_CLI::add_command( 'import-twitter', $cli_command );
 		}
 
-		add_action( 'init', [ $this, 'create_twitter_post_type' ] );
-		add_filter( 'init', [$this, 'create_hashtag_taxonomy']);
-		add_filter( 'manage_birdsite_tweet_posts_columns', [$this, 'set_custom_columns'] );
-		add_filter( 'manage_birdsite_tweet_posts_custom_column', [$this, 'populate_tweet_columns'], 10, 2 );
+		if ( $this->setHasTweets()){
+			add_action( 'init', [ $this, 'create_twitter_post_type' ] );
+			add_filter( 'init', [$this, 'create_hashtag_taxonomy']);
+			add_filter( 'manage_birdsite_tweet_posts_columns', [$this, 'set_custom_columns'] );
+			add_filter( 'manage_birdsite_tweet_posts_custom_column', [$this, 'populate_tweet_columns'], 10, 2 );
+		}
 	}
 
 	public function create_hashtag_taxonomy(): void
 	{
+		if ( ! $this->setHasTweets()){
+			return;
+		}
+
 		// Add new taxonomy, NOT hierarchical (like tags)
 		$labels = array(
 			'name' => _x( 'Hashtags', 'taxonomy general name' ),
@@ -109,7 +117,22 @@ class BirdSiteArchive {
 		}
 	}
 
+	private function setHasTweets() : bool {
+		if ( null !== $this->has_tweets) {
+			return $this->has_tweets;
+		}
 
+		global $wpdb;
+		$count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}posts WHERE post_type='birdsite_tweet'");
+
+		if ( $count > 0 ) {
+			$this->has_tweets = true;
+			return true;
+		}
+
+		$this->has_tweets = false;
+		return false;
+	}
 }
 
 $_GLOBALS['BirdSiteArchive'] = new BirdSiteArchive();
