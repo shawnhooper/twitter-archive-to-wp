@@ -14,11 +14,7 @@
 
 namespace ShawnHooper\BirdSiteArchive;
 
-use DateTime;
-use JsonException;
-use stdClass;
 use WP_CLI;
-use const ABSPATH;
 
 class BirdSiteArchive {
 
