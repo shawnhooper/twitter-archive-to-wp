@@ -5,6 +5,8 @@ use \WP_CLI;
 
 class Tweet_Post_Type {
 
+	protected ?bool $has_tweets = null;
+
 	public function wordpress_hooks() {
 		if ( ! $this->setHasTweets()){
 			return;
@@ -71,6 +73,7 @@ class Tweet_Post_Type {
 		$columns['title'] = __( 'Tweet', 'birdsite_archive' );
 		$columns['favorite_count'] = __( 'Likes', 'birdsite_archive' );
 		$columns['retweet_count'] = __( 'Retweets', 'birdsite_archive' );
+		$columns['has_media'] = __( 'Has Media', 'birdsite_archive' );
 
 		return $columns;
 	}
@@ -83,6 +86,9 @@ class Tweet_Post_Type {
 				break;
 			case 'favorite_count' :
 				echo get_post_meta($post_id, '_favorite_count', true);
+				break;
+			case 'has_media' :
+				echo get_post_meta($post_id, '_tweet_media_type', true);
 				break;
 		}
 	}
