@@ -10,6 +10,8 @@ class Import_Twitter_Command {
 
 	private array $media_files = [];
 
+	private array $id_to_post_id_map = [];
+
 	/**
 	 * Imports Twitter Data archive to WordPress
 	 *
@@ -56,6 +58,8 @@ class Import_Twitter_Command {
 			}
 
 			$post_id = $this->process_tweet($tweet->tweet, $post_author_id);
+
+			$this->id_to_post_id_map[$tweet->tweet->id] = $post_id;
 
 			$this->set_postmeta($tweet->tweet, $post_id);
 			$this->set_hashtags($tweet->tweet, $post_id);
