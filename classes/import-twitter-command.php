@@ -46,14 +46,35 @@ class Import_Twitter_Command {
 
 		WP_CLI::line('Starting Import of ' . count($tweets) . ' tweets');
 
-		foreach($tweets as $tweet) {
+		for ($i = 0; $i < $total_tweets; $i++) {
+			$tweet = $tweets[$i];
 			$this->tweets_processed++;
 
 			WP_CLI::line("Processing Tweet $this->tweets_processed of $total_tweets");
 
-			if (isset($tweet->tweet->in_reply_to_status_id) && $skip_replies) {
+			if (
+				isset($tweet->tweet->in_reply_to_status_id) &&
+				$skip_replies &&
+				! isset($this->id_to_post_id_map[$tweet->tweet->in_reply_to_status_id]))
+			{
 				\WP_CLI::success("Skipping Reply Tweet");
 				$this->tweets_skipped++;
+				continue;
+			}
+
+			if (
+				isset($tweet->tweet->in_reply_to_status_id) &&
+				isset($this->id_to_post_id_map[$tweet->tweet->in_reply_to_status_id]))
+			{
+				wp_insert_comment([
+					'comment_post_ID' => $this->id_to_post_id_map[$tweet->tweet->in_reply_to_status_id],
+					'comment_author' => get_user_by('ID', $post_author_id)->display_name,
+					'user_id' =>  $post_author_id,
+					'comment_content' => $tweet->tweet->full_text,
+				]);
+
+				update_post_meta($this->id_to_post_id_map[$tweet->tweet->in_reply_to_status_id], '_is_twitter_thread', '1');
+				$this->id_to_post_id_map[$tweet->tweet->id] = $this->id_to_post_id_map[$tweet->tweet->in_reply_to_status_id];
 				continue;
 			}
 
@@ -168,7 +189,7 @@ class Import_Twitter_Command {
 				}
 
 				if ( $found_filename === null ) {
-					WP_CLI::error('Unable to find media (' . $media->type . '): ' . $filename);
+					//WP_CLI::error('Unable to find media (' . $media->type . '): ' . $filename);
 				}
 
 			}
