@@ -66,11 +66,9 @@ class Import_Twitter_Command {
 	}
 
 	/**
-	 * @param stdClass $tweet
-	 * @param int $total_tweets
+	 * @param \stdClass $tweet
 	 * @param int $post_author
 	 * @return int
-	 * @throws JsonException
 	 */
 	public function process_tweet(\stdClass $tweet, int $post_author) : int {
 		$created_at = \DateTime::createFromFormat('D M d H:i:s O Y', $tweet->created_at)->format('c');
@@ -99,12 +97,18 @@ class Import_Twitter_Command {
 	}
 
 	/**
-	 * @throws JsonException
+	 * @throws \JsonException
 	 */
 	private function get_tweet_array() : array {
 		$tweets = file_get_contents(ABSPATH . 'wp-content/uploads/twitter-archive/tweets.js');
 		$tweets = str_replace("window.YTD.tweets.part0 = ", '', $tweets);
-		return json_decode($tweets, false, 512, JSON_THROW_ON_ERROR);
+		$decoded_json = json_decode($tweets, false, 512, JSON_THROW_ON_ERROR);
+
+		// Sort based on created_at date
+		usort($decoded_json, static function ($a, $b) { return strnatcmp($a->tweet->id, $b->tweet->id); });
+
+		return $decoded_json;
+
 	}
 
 	private function set_postmeta(\stdClass $tweet, int $post_id) : void {
