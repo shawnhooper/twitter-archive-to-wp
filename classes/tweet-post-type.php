@@ -74,6 +74,7 @@ class Tweet_Post_Type {
 		$columns['favorite_count'] = __( 'Likes', 'birdsite_archive' );
 		$columns['retweet_count'] = __( 'Retweets', 'birdsite_archive' );
 		$columns['has_media'] = __( 'Has Media', 'birdsite_archive' );
+		$columns['is_thread'] = __( 'Is Thread', 'birdsite_archive' );
 
 		return $columns;
 	}
@@ -89,6 +90,11 @@ class Tweet_Post_Type {
 				break;
 			case 'has_media' :
 				echo get_post_meta($post_id, '_tweet_media_type', true);
+				break;
+			case 'is_thread' :
+				if( get_post_meta($post_id, '_is_twitter_thread', true) ) {
+					echo 'Yes (' . get_comment_count($post_id)['all'] .')';
+				}
 				break;
 		}
 	}
