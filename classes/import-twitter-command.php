@@ -189,7 +189,7 @@ class Import_Twitter_Command {
 				}
 
 				if ( $found_filename === null ) {
-					//WP_CLI::error('Unable to find media (' . $media->type . '): ' . $filename);
+					WP_CLI::error('Unable to find media (' . $media->type . '): ' . $filename);
 				}
 
 			}
