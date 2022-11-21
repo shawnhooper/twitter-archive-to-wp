@@ -5,7 +5,7 @@ Tags: twitter, archive, wp-cli, import
 Requires at least: 6.0.0
 Tested up to: 6.1
 Requires PHP: 7.4.0
-Stable tag: 1.2.1
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -50,6 +50,10 @@ If you need to start over, the these WP-CLI commadns to delete the data the plug
 1. Tweets created as posts
 
 == Changelog ==
+
+= 1.3.0 =
+* Handle Multipart Files
+* Remove unused entities during array processing to reduce RAM requirements
 
 = 1.2.1 =
 * If media is not found, throw a warning instead of an error

@@ -53,9 +53,9 @@ class Import_Twitter_Command {
 			WP_CLI::line("Processing Tweet $this->tweets_processed of $total_tweets");
 
 			if (
-				isset($tweet->tweet->in_reply_to_status_id) &&
+				isset($tweet->in_reply_to_status_id) &&
 				$skip_replies &&
-				! isset($this->id_to_post_id_map[$tweet->tweet->in_reply_to_status_id]))
+				! isset($this->id_to_post_id_map[$tweet->in_reply_to_status_id]))
 			{
 				\WP_CLI::success("Skipping Reply Tweet");
 				$this->tweets_skipped++;
@@ -63,28 +63,28 @@ class Import_Twitter_Command {
 			}
 
 			if (
-				isset($tweet->tweet->in_reply_to_status_id) &&
-				isset($this->id_to_post_id_map[$tweet->tweet->in_reply_to_status_id]))
+				isset($tweet->in_reply_to_status_id) &&
+				isset($this->id_to_post_id_map[$tweet->in_reply_to_status_id]))
 			{
 				wp_insert_comment([
-					'comment_post_ID' => $this->id_to_post_id_map[$tweet->tweet->in_reply_to_status_id],
+					'comment_post_ID' => $this->id_to_post_id_map[$tweet->in_reply_to_status_id],
 					'comment_author' => get_user_by('ID', $post_author_id)->display_name,
 					'user_id' =>  $post_author_id,
-					'comment_content' => $tweet->tweet->full_text,
+					'comment_content' => $tweet->full_text,
 				]);
 
-				update_post_meta($this->id_to_post_id_map[$tweet->tweet->in_reply_to_status_id], '_is_twitter_thread', '1');
-				$this->id_to_post_id_map[$tweet->tweet->id] = $this->id_to_post_id_map[$tweet->tweet->in_reply_to_status_id];
+				update_post_meta($this->id_to_post_id_map[$tweet->in_reply_to_status_id], '_is_twitter_thread', '1');
+				$this->id_to_post_id_map[$tweet->id] = $this->id_to_post_id_map[$tweet->in_reply_to_status_id];
 				continue;
 			}
 
-			$post_id = $this->process_tweet($tweet->tweet, $post_author_id);
+			$post_id = $this->process_tweet($tweet, $post_author_id);
 
-			$this->id_to_post_id_map[$tweet->tweet->id] = $post_id;
+			$this->id_to_post_id_map[$tweet->id] = $post_id;
 
-			$this->set_postmeta($tweet->tweet, $post_id);
-			$this->set_hashtags($tweet->tweet, $post_id);
-			$this->process_media($tweet->tweet, $post_id);
+			$this->set_postmeta($tweet, $post_id);
+			$this->set_hashtags($tweet, $post_id);
+			$this->process_media($tweet, $post_id);
 		}
 
 		WP_CLI::success('Import Complete - ' . $this->tweets_processed . ' tweets processed, ' . $skip_replies . 'skipped');
@@ -125,15 +125,66 @@ class Import_Twitter_Command {
 	 * @throws \JsonException
 	 */
 	private function get_tweet_array() : array {
-		$tweets = file_get_contents(ABSPATH . 'wp-content/uploads/twitter-archive/tweets.js');
-		$tweets = str_replace("window.YTD.tweets.part0 = ", '', $tweets);
-		$decoded_json = json_decode($tweets, false, 512, JSON_THROW_ON_ERROR);
+		$files = $this->get_multipart_tweet_archive_filenames();
+
+		$tweets = [];
+		foreach($files as $filename) {
+			$this_file = $this->get_filtered_result_from_file($filename);
+			foreach ($this_file as $tweet) {
+				$tweets[] = $tweet;
+			}
+		}
 
 		// Sort based on created_at date
-		usort($decoded_json, static function ($a, $b) { return strnatcmp($a->tweet->id, $b->tweet->id); });
+		usort($tweets, static function ($a, $b) { return strnatcmp($a->id, $b->id); });
 
-		return $decoded_json;
+		return $tweets;
 
+	}
+
+	/**
+	 * @return array
+	 */
+	private function get_multipart_tweet_archive_filenames() : array {
+		$files[] = ABSPATH . 'wp-content/uploads/twitter-archive/tweets.js';
+		$additional_parts = glob(ABSPATH . 'wp-content/uploads/twitter-archive/tweets-part*.js');
+
+		$files = array_merge($files, $additional_parts);
+
+		return $files;
+	}
+
+	/**
+	 * @param string $filepath
+	 * @return array
+	 * @throws \JsonException
+	 */
+	private function get_filtered_result_from_file(string $filepath) : array {
+		$data = file_get_contents($filepath);
+		$tweets = substr($data, strpos($data, "["));
+
+		$raw_tweets = json_decode($tweets, false, 512, JSON_THROW_ON_ERROR);
+
+		$tweets = [];
+		foreach ($raw_tweets as $raw_tweet) {
+			$tweet = $raw_tweet;
+
+			// Remove unused entities
+			// reduce RAM requirements on large archjves
+			unset($tweet->tweet->edit_info);
+			unset($tweet->tweet->source);
+			unset($tweet->tweet->lang);
+			unset($tweet->tweet->favorited);
+			unset($tweet->tweet->in_reply_to_user_id);
+			unset($tweet->tweet->display_text_range);
+			unset($tweet->tweet->entities->user_mentions);
+			unset($tweet->tweet->entities->symbols);
+			unset($tweet->tweet->in_reply_to_screen_name);
+
+			$tweets[] = $tweet->tweet;
+		}
+
+		return $tweets;
 	}
 
 	private function set_postmeta(\stdClass $tweet, int $post_id) : void {
@@ -142,10 +193,6 @@ class Import_Twitter_Command {
 
 		if (isset($tweet->in_reply_to_status_id_str)) {
 			update_post_meta($post_id, '_in_reply_to_status_id_str', $tweet->in_reply_to_status_id_str );
-		}
-
-		if (isset($tweet->in_reply_to_screen_name)) {
-			update_post_meta($post_id, '_in_reply_to_screen_name', $tweet->in_reply_to_screen_name );
 		}
 	}
 
