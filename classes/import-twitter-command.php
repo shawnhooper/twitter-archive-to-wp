@@ -84,6 +84,7 @@ class Import_Twitter_Command {
 
 			$this->set_postmeta($tweet, $post_id);
 			$this->set_hashtags($tweet, $post_id);
+			$this->set_ticket_symbols($tweet, $post_id);
 			$this->process_media($tweet, $post_id);
 		}
 
@@ -203,6 +204,16 @@ class Import_Twitter_Command {
 				$hashtags[] = $hashtag->text;
 			}
 			wp_set_post_terms($post_id, $hashtags, 'birdsite_hashtags', true);
+		}
+	}
+
+	private function set_ticket_symbols(\stdClass $tweet, int $post_id) {
+		if (isset($tweet->entities->symbols)) {
+			$ticker_symbols = [];
+			foreach($tweet->entities->symbols as $hashtag) {
+				$ticker_symbols[] = '$' . $hashtag->text;
+			}
+			wp_set_post_terms($post_id, $ticker_symbols, 'birdsite_hashtags', true);
 		}
 	}
 

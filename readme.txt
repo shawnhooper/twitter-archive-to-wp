@@ -54,6 +54,7 @@ If you need to start over, the these WP-CLI commadns to delete the data the plug
 = 1.3.0 =
 * Handle Multipart Files
 * Remove unused entities during array processing to reduce RAM requirements
+* Import Stock Symbols
 
 = 1.2.1 =
 * If media is not found, throw a warning instead of an error
