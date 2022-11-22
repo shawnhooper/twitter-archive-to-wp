@@ -42,19 +42,27 @@ This plugin doesn't need more than that at the moment.
 
 If you need to start over, the these WP-CLI commadns to delete the data the plugin added:
 
-1. wp term list birdsite_hashtag --field=term_id | xargs wp term delete birdsite_hashtag
+1. wp term list birdsite_hashtags --field=term_id | xargs wp term delete birdsite_hashtags
 1. wp post delete $(wp post list --post_type='birdsite_tweet' --format=ids) --force
 
 == Screenshots ==
-
+https://github.com/janngobble
 1. Tweets created as posts
+
+== Thank you ==
+
+Thank you to:
+
+* Jann Gobble (https://github.com/janngobble) for helping me test the multipart Twitter Archives
+* Alex Standiford (https://github.com/alexstandiford) and Tim Lyttle (https://github.com/timnolte) for a late night Zoom call and strategy session and this stuff.
 
 == Changelog ==
 
 = 1.3.0 =
-* Handle Multipart Files
+* Handle Multipart Archives (tweets.js, tweets-part1.js, tweets-part2.js, etc.)
 * Remove unused entities during array processing to reduce RAM requirements
 * Import Stock Symbols
+* Redisplayed the UI when no tweets imported. Seems to affect hashtag importer.
 
 = 1.2.1 =
 * If media is not found, throw a warning instead of an error

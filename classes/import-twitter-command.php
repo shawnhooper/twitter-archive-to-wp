@@ -12,6 +12,9 @@ class Import_Twitter_Command {
 
 	private array $id_to_post_id_map = [];
 
+	private int $post_author_id = 0;
+	private bool $skip_replies = false;
+
 	/**
 	 * Imports Twitter Data archive to WordPress
 	 *
@@ -32,16 +35,29 @@ class Import_Twitter_Command {
 	 * @when after_wp_load
 	 */
 	public function __invoke($args, $assoc_args) : void {
-		$post_author_id = (int)$args[0];
+		$this->post_author_id = (int)$args[0];
 
-		$skip_replies = isset($assoc_args['skip-replies']);
+		$this->skip_replies = isset($assoc_args['skip-replies']);
 
-		if ($post_author_id === null || $post_author_id === 0) {
+		if ($this->post_author_id === 0) {
 			WP_CLI::error('Error: invalid post author ID');
 			return;
 		}
 
-		$tweets = $this->get_tweet_array();
+		$files = $this->get_multipart_tweet_archive_filenames();
+
+		foreach($files as $filename) {
+			$this->process_file($filename);
+		}
+
+	}
+
+	private function process_file(string $filename): void
+	{
+		$tweets = $this->get_filtered_result_from_file($filename);
+		usort($tweets, static function ($a, $b) { return strnatcmp($a->id, $b->id); });
+
+
 		$total_tweets = count($tweets);
 
 		WP_CLI::line('Starting Import of ' . count($tweets) . ' tweets');
@@ -54,7 +70,7 @@ class Import_Twitter_Command {
 
 			if (
 				isset($tweet->in_reply_to_status_id) &&
-				$skip_replies &&
+				$this->skip_replies &&
 				! isset($this->id_to_post_id_map[$tweet->in_reply_to_status_id]))
 			{
 				\WP_CLI::success("Skipping Reply Tweet");
@@ -66,10 +82,10 @@ class Import_Twitter_Command {
 				isset($tweet->in_reply_to_status_id) &&
 				isset($this->id_to_post_id_map[$tweet->in_reply_to_status_id]))
 			{
-				wp_insert_comment([
+				$comment_id = wp_insert_comment([
 					'comment_post_ID' => $this->id_to_post_id_map[$tweet->in_reply_to_status_id],
-					'comment_author' => get_user_by('ID', $post_author_id)->display_name,
-					'user_id' =>  $post_author_id,
+					'comment_author' => get_user_by('ID', $this->post_author_id)->display_name,
+					'user_id' =>  $this->post_author_id,
 					'comment_content' => $tweet->full_text,
 				]);
 
@@ -78,17 +94,17 @@ class Import_Twitter_Command {
 				continue;
 			}
 
-			$post_id = $this->process_tweet($tweet, $post_author_id);
+			$post_id = $this->process_tweet($tweet, $this->post_author_id);
 
 			$this->id_to_post_id_map[$tweet->id] = $post_id;
 
 			$this->set_postmeta($tweet, $post_id);
 			$this->set_hashtags($tweet, $post_id);
-			$this->set_ticket_symbols($tweet, $post_id);
+			$this->set_ticker_symbols($tweet, $post_id);
 			$this->process_media($tweet, $post_id);
 		}
 
-		WP_CLI::success('Import Complete - ' . $this->tweets_processed . ' tweets processed, ' . $skip_replies . 'skipped');
+		WP_CLI::success('Import Complete - ' . $this->tweets_processed . ' tweets processed, ' . $this->skip_replies . 'skipped');
 	}
 
 	/**
@@ -119,27 +135,6 @@ class Import_Twitter_Command {
 		];
 
 		return wp_insert_post($args);
-
-	}
-
-	/**
-	 * @throws \JsonException
-	 */
-	private function get_tweet_array() : array {
-		$files = $this->get_multipart_tweet_archive_filenames();
-
-		$tweets = [];
-		foreach($files as $filename) {
-			$this_file = $this->get_filtered_result_from_file($filename);
-			foreach ($this_file as $tweet) {
-				$tweets[] = $tweet;
-			}
-		}
-
-		// Sort based on created_at date
-		usort($tweets, static function ($a, $b) { return strnatcmp($a->id, $b->id); });
-
-		return $tweets;
 
 	}
 
@@ -179,7 +174,6 @@ class Import_Twitter_Command {
 			unset($tweet->tweet->in_reply_to_user_id);
 			unset($tweet->tweet->display_text_range);
 			unset($tweet->tweet->entities->user_mentions);
-			unset($tweet->tweet->entities->symbols);
 			unset($tweet->tweet->in_reply_to_screen_name);
 
 			$tweets[] = $tweet->tweet;
@@ -207,11 +201,11 @@ class Import_Twitter_Command {
 		}
 	}
 
-	private function set_ticket_symbols(\stdClass $tweet, int $post_id) {
+	private function set_ticker_symbols(\stdClass $tweet, int $post_id) {
 		if (isset($tweet->entities->symbols)) {
 			$ticker_symbols = [];
-			foreach($tweet->entities->symbols as $hashtag) {
-				$ticker_symbols[] = '$' . $hashtag->text;
+			foreach($tweet->entities->symbols as $symbol) {
+				$ticker_symbols[] = '$' . $symbol->text;
 			}
 			wp_set_post_terms($post_id, $ticker_symbols, 'birdsite_hashtags', true);
 		}
