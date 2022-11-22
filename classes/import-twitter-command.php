@@ -89,6 +89,8 @@ class Import_Twitter_Command {
 					'comment_content' => $tweet->full_text,
 				]);
 
+				add_comment_meta('_tweet_id', $tweet->id, $comment_id, true);
+
 				update_post_meta($this->id_to_post_id_map[$tweet->in_reply_to_status_id], '_is_twitter_thread', '1');
 				$this->id_to_post_id_map[$tweet->id] = $this->id_to_post_id_map[$tweet->in_reply_to_status_id];
 				continue;
@@ -228,6 +230,7 @@ class Import_Twitter_Command {
 						\WP_CLI::success('Found Media (' . $media->type . '): ' . $found_filename);
 						update_post_meta($post_id, '_tweet_media', $found_filename);
 						update_post_meta($post_id, '_tweet_media_type', $media->type);
+						update_post_meta($post_id, '_tweet_id', $tweet->id);
 
 						$post = get_post($post_id);
 						$post->post_title = str_replace($media->url, '', $post->post_title);
