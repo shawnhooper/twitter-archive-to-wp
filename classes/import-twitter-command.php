@@ -135,7 +135,6 @@ class Import_Twitter_Command {
 			'post_type' => 'birdsite_tweet',
 			'post_status' => 'publish',
 			'post_content' => $tweet_text,
-			//'post_content' => json_encode($tweet, JSON_THROW_ON_ERROR),
 			'post_date' => $created_at,
 			'post_date_gmt' => $created_at,
 		];
