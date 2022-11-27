@@ -45,7 +45,6 @@ class Import_Twitter_Command {
 
 		if ($this->post_author_id === 0) {
 			WP_CLI::error('Error: invalid post author ID');
-			return;
 		}
 
 		$this->data_dir = (wp_upload_dir())['basedir'] . '/twitter-archive';
