@@ -5,6 +5,8 @@ use \WP_CLI;
 
 class Import_Twitter_Command {
 
+	private string $data_dir = '';
+
 	private int $tweets_processed = 0;
 	private int $tweets_skipped = 0;
 
@@ -44,6 +46,7 @@ class Import_Twitter_Command {
 			return;
 		}
 
+		$this->data_dir = (wp_upload_dir())['basedir'] . '/twitter-archive';
 		$files = $this->get_multipart_tweet_archive_filenames();
 
 		foreach($files as $filename) {
@@ -145,8 +148,8 @@ class Import_Twitter_Command {
 	 * @return array
 	 */
 	private function get_multipart_tweet_archive_filenames() : array {
-		$files[] = ABSPATH . 'wp-content/uploads/twitter-archive/tweets.js';
-		$additional_parts = glob(ABSPATH . 'wp-content/uploads/twitter-archive/tweets-part*.js');
+		$files[] = $this->data_dir . '/tweets.js';
+		$additional_parts = glob($this->data_dir . '/tweets-part*.js');
 
 		$files = array_merge($files, $additional_parts);
 
@@ -217,7 +220,7 @@ class Import_Twitter_Command {
 	private function process_media(\stdClass $tweet, int $post_id): void
 	{
 		if ( count($this->media_files) === 0) {
-			$this->media_files = scandir(ABSPATH . 'wp-content/uploads/twitter-archive/tweets_media');
+			$this->media_files = scandir($this->data_dir . '/tweets_media');
 		}
 
 		if (isset($tweet->entities->media)) {
