@@ -7,6 +7,8 @@ class Import_Twitter_Command {
 
 	private string $data_dir = '';
 
+	private \stdClass $account_data;
+
 	private int $tweets_processed = 0;
 	private int $tweets_skipped = 0;
 
@@ -47,7 +49,14 @@ class Import_Twitter_Command {
 		}
 
 		$this->data_dir = (wp_upload_dir())['basedir'] . '/twitter-archive';
+
 		$files = $this->get_multipart_tweet_archive_filenames();
+
+		try {
+			$this->account_data = $this->get_account_data_from_file();
+		} catch (\Exception $e) {
+			WP_CLI::error('Error while reading account.js');
+		}
 
 		foreach($files as $filename) {
 			$this->process_file($filename);
@@ -153,6 +162,24 @@ class Import_Twitter_Command {
 		$files = array_merge($files, $additional_parts);
 
 		return $files;
+	}
+
+	/**
+	 * @return \stdClass
+	 * @throws \JsonException
+	 */
+	private function get_account_data_from_file() : \stdClass {
+		$account_data_as_string = file_get_contents($this->data_dir . '/account.js');
+
+		$account_data_as_string = str_replace('window.YTD.account.part0 = ', '', $account_data_as_string);
+
+		$account_data = json_decode($account_data_as_string, false, 512, JSON_THROW_ON_ERROR);
+
+		if (! is_array($account_data)) {
+			WP_CLI::error('Data in account.js is not in the expected format');
+		}
+
+		return $account_data[0]->account;
 	}
 
 	/**
