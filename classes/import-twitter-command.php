@@ -214,6 +214,10 @@ class Import_Twitter_Command {
 		return $tweets;
 	}
 
+	private function make_tweet_url(\stdClass $tweet) : string {
+		return 'https://twitter.com/' . $this->account_data->username . '/status/' . $tweet->id;
+	}
+
 	private function set_postmeta(\stdClass $tweet, int $post_id) : void {
 		update_post_meta($post_id, '_retweet_count', $tweet->retweet_count );
 		update_post_meta($post_id, '_favorite_count', $tweet->favorite_count );
@@ -221,6 +225,9 @@ class Import_Twitter_Command {
 		if (isset($tweet->in_reply_to_status_id_str)) {
 			update_post_meta($post_id, '_in_reply_to_status_id_str', $tweet->in_reply_to_status_id_str );
 		}
+
+		// Tweets don't seem to have a Tweet URL in the data, so we need to make one.
+		update_post_meta($post_id, '_tweet_url', $this->make_tweet_url($tweet));
 	}
 
 	private function set_hashtags(\stdClass $tweet, int $post_id) {
