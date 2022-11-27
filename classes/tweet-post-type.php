@@ -67,7 +67,7 @@ class Tweet_Post_Type {
 	public function set_custom_columns(array $columns) : array
 	{
 		unset($columns['title']);
-		$columns['title'] = __( 'Tweet', 'birdsite_archive' );
+		$columns['tweet'] = __( 'Tweet', 'birdsite_archive' );
 		$columns['favorite_count'] = __( 'Likes', 'birdsite_archive' );
 		$columns['retweet_count'] = __( 'Retweets', 'birdsite_archive' );
 		$columns['has_media'] = __( 'Has Media', 'birdsite_archive' );
@@ -79,6 +79,9 @@ class Tweet_Post_Type {
 	public function populate_tweet_columns(string $column, int $post_id): void
 	{
 		switch ( $column ) {
+			case 'tweet':
+				echo get_post($post_id)->post_content;
+				break;
 			case 'retweet_count' :
 				echo get_post_meta($post_id, '_retweet_count', true);
 				break;
