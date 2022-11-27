@@ -80,7 +80,12 @@ class Tweet_Post_Type {
 	{
 		switch ( $column ) {
 			case 'tweet':
-				echo get_post($post_id)->post_content;
+				$tweet = get_post($post_id)->post_content;
+				// For compatibility with older imports that may have used the title for the Tweet
+				if (empty($tweet)) {
+					$tweet = get_the_title($post_id);
+				}
+				echo $tweet;
 				break;
 			case 'retweet_count' :
 				echo get_post_meta($post_id, '_retweet_count', true);
