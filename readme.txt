@@ -91,6 +91,8 @@ Thank you to:
 * Uses the wp_upload_dir() function to get uploads folder, instead of being hardcoded
 * Wrap links with <a> tags.
 * Skip tweet if it has already been imported
+* Fix display of how many tweets were skipped in the console
+* Added actions & filters at key points in import process
 
 = 1.3.0 =
 * Handle Multipart Archives (tweets.js, tweets-part1.js, tweets-part2.js, etc.)
@@ -109,7 +111,7 @@ Thank you to:
 
 = 1.1.0 =
 * Ability to skip your replies to others from import using --slip-replies
-* Moved WP-CLI command into it's own class
+* Moved WP-CLI command into its own class
 * Hide UI for Tweets if no import has been done
 
 = 1.0.0 =
