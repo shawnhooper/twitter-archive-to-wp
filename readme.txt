@@ -47,7 +47,7 @@ If you need to start over, the these WP-CLI commadns to delete the data the plug
 1. wp post delete $(wp post list --post_type='birdsite_tweet' --format=ids) --force
 
 == Screenshots ==
-https://github.com/janngobble
+
 1. Tweets created as posts
 
 == Thank you ==
@@ -65,6 +65,7 @@ Thank you to:
 * Save the original tweet URL as _tweet_url postmeta
 * Uses the wp_upload_dir() function to get uploads folder, instead of being hardcoded
 * Wrap links with <a> tags.
+* Skip tweet if it has already been imported
 
 = 1.3.0 =
 * Handle Multipart Archives (tweets.js, tweets-part1.js, tweets-part2.js, etc.)

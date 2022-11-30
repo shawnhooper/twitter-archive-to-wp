@@ -5,6 +5,8 @@ use \WP_CLI;
 
 class Import_Twitter_Command {
 
+	private string $post_type = 'birdsite_tweet';
+
 	private string $data_dir = '';
 
 	private \stdClass $account_data;
@@ -79,6 +81,12 @@ class Import_Twitter_Command {
 
 			WP_CLI::line("Processing Tweet $this->tweets_processed of $total_tweets");
 
+			if ( $this->does_tweet_already_exist($tweet->id)) {
+				\WP_CLI::success("Tweet already imported, skipping.");
+				$this->tweets_skipped++;
+				continue;
+			}
+
 			if (
 				isset($tweet->in_reply_to_status_id) &&
 				$this->skip_replies &&
@@ -140,7 +148,7 @@ class Import_Twitter_Command {
 		$args = [
 			'post_name' => $tweet->id,
 			'post_author' => $post_author,
-			'post_type' => 'birdsite_tweet',
+			'post_type' => $this->post_type,
 			'post_status' => 'publish',
 			'post_content' => $tweet_text,
 			'post_date' => $created_at,
@@ -285,8 +293,46 @@ class Import_Twitter_Command {
 
 			}
 		}
-
 	}
 
+	/**
+	 * Checks whether a post or comment was already created from this tweet.
+	 * Allows you to run the importer multiple times without creating duplicates.
+	 *
+	 * @param string $tweet_id
+	 * @return bool
+	 */
+	private function does_tweet_already_exist(string $tweet_id) : bool
+	{
+		$post = $this->get_post_by_name($tweet_id);
 
+		if ($post) {
+			return true;
+		}
+
+		$comment_count = get_comments([
+			'count' => true,
+			'meta_key' => '_tweet_id',
+			'meta_value' => $tweet_id,
+			'post_type' => $this->post_type,
+		]);
+
+		return $comment_count > 0;
+	}
+
+	/**
+	 * Find a post by the post_name field
+	 *
+	 * @param string $name
+	 * @return bool
+	 */
+	private function get_post_by_name(string $name): bool
+	{
+		$query = new \WP_Query([
+			"post_type" => $this->post_type,
+			"name" => $name
+		]);
+
+		return $query->have_posts();
+	}
 }
