@@ -221,10 +221,27 @@ class Import_Twitter_Command {
 		return $tweets;
 	}
 
+	/**
+	 * Make the original tweet URL
+	 *
+	 * @param \stdClass $tweet
+	 * @return string
+	 */
 	private function make_tweet_url(\stdClass $tweet) : string {
 		return 'https://twitter.com/' . $this->account_data->username . '/status/' . $tweet->id;
 	}
 
+	/**
+	 * Set post meta fields for:
+	 * - Number of Favorites
+	 * - Number of Retweets
+	 * - Reply to Tweet ID
+	 * - The original Tweet URL
+	 *
+	 * @param \stdClass $tweet
+	 * @param int $post_id
+	 * @return void
+	 */
 	private function set_postmeta(\stdClass $tweet, int $post_id) : void {
 		update_post_meta($post_id, '_retweet_count', $tweet->retweet_count );
 		update_post_meta($post_id, '_favorite_count', $tweet->favorite_count );
@@ -237,6 +254,13 @@ class Import_Twitter_Command {
 		update_post_meta($post_id, '_tweet_url', $this->make_tweet_url($tweet));
 	}
 
+	/**
+	 * Make taxonomy entries from each hashtag
+	 *
+	 * @param \stdClass $tweet
+	 * @param int $post_id
+	 * @return void
+	 */
 	private function set_hashtags(\stdClass $tweet, int $post_id) {
 		if (isset($tweet->entities->hashtags)) {
 			$hashtags = [];
@@ -247,6 +271,13 @@ class Import_Twitter_Command {
 		}
 	}
 
+	/**
+	 * Make taxonomy entries out of each stock ticker symbol
+	 *
+	 * @param \stdClass $tweet
+	 * @param int $post_id
+	 * @return void
+	 */
 	private function set_ticker_symbols(\stdClass $tweet, int $post_id) {
 		if (isset($tweet->entities->symbols)) {
 			$ticker_symbols = [];
@@ -257,6 +288,13 @@ class Import_Twitter_Command {
 		}
 	}
 
+	/**
+	 * Process an image or video contained in the tweet
+	 *
+	 * @param \stdClass $tweet
+	 * @param int $post_id
+	 * @return void
+	 */
 	private function process_media(\stdClass $tweet, int $post_id): void
 	{
 		if ( count($this->media_files) === 0) {
