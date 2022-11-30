@@ -26,8 +26,9 @@ Your Twitter archive contains some data you might not want accessible by someone
 you've uploaded it your site.  It is highly recommended before uploading the data folder that
 you delete all files except for:
 
-* tweets.json
+* tweets.js
 * tweets_media/*
+* account.js
 
 This plugin doesn't need more than that at the moment.
 
@@ -36,7 +37,7 @@ This plugin doesn't need more than that at the moment.
 1. Install and Activate this plugin
 1. Unzip your Twitter Archive
 1. Copy the data/ folder from the Twitter archive to the wp-contents/uploads/twitter-archive folder. (read privacy note above)
-1. Run `wp import-twitter --author=<post_author>` where <post_author> is your WordPress User ID
+1. Run `wp import-twitter <post_author>` where <post_author> is your WordPress User ID
 
 == Starting Over ==
 

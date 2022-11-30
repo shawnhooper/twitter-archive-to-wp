@@ -7,6 +7,8 @@ class Import_Twitter_Command {
 
 	private string $data_dir = '';
 
+	private \stdClass $account_data;
+
 	private int $tweets_processed = 0;
 	private int $tweets_skipped = 0;
 
@@ -43,11 +45,17 @@ class Import_Twitter_Command {
 
 		if ($this->post_author_id === 0) {
 			WP_CLI::error('Error: invalid post author ID');
-			return;
 		}
 
 		$this->data_dir = (wp_upload_dir())['basedir'] . '/twitter-archive';
+
 		$files = $this->get_multipart_tweet_archive_filenames();
+
+		try {
+			$this->account_data = $this->get_account_data_from_file();
+		} catch (\Exception $e) {
+			WP_CLI::error('Error while reading account.js');
+		}
 
 		foreach($files as $filename) {
 			$this->process_file($filename);
@@ -156,6 +164,24 @@ class Import_Twitter_Command {
 	}
 
 	/**
+	 * @return \stdClass
+	 * @throws \JsonException
+	 */
+	private function get_account_data_from_file() : \stdClass {
+		$account_data_as_string = file_get_contents($this->data_dir . '/account.js');
+
+		$account_data_as_string = str_replace('window.YTD.account.part0 = ', '', $account_data_as_string);
+
+		$account_data = json_decode($account_data_as_string, false, 512, JSON_THROW_ON_ERROR);
+
+		if (! is_array($account_data)) {
+			WP_CLI::error('Data in account.js is not in the expected format');
+		}
+
+		return $account_data[0]->account;
+	}
+
+	/**
 	 * @param string $filepath
 	 * @return array
 	 * @throws \JsonException
@@ -187,6 +213,10 @@ class Import_Twitter_Command {
 		return $tweets;
 	}
 
+	private function make_tweet_url(\stdClass $tweet) : string {
+		return 'https://twitter.com/' . $this->account_data->username . '/status/' . $tweet->id;
+	}
+
 	private function set_postmeta(\stdClass $tweet, int $post_id) : void {
 		update_post_meta($post_id, '_retweet_count', $tweet->retweet_count );
 		update_post_meta($post_id, '_favorite_count', $tweet->favorite_count );
@@ -194,6 +224,9 @@ class Import_Twitter_Command {
 		if (isset($tweet->in_reply_to_status_id_str)) {
 			update_post_meta($post_id, '_in_reply_to_status_id_str', $tweet->in_reply_to_status_id_str );
 		}
+
+		// Tweets don't seem to have a Tweet URL in the data, so we need to make one.
+		update_post_meta($post_id, '_tweet_url', $this->make_tweet_url($tweet));
 	}
 
 	private function set_hashtags(\stdClass $tweet, int $post_id) {
