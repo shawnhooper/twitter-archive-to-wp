@@ -2,6 +2,7 @@
 
 namespace ShawnHooper\BirdSiteArchive;
 use \WP_CLI;
+use WP_Query;
 
 class Import_Twitter_Command {
 
@@ -55,7 +56,7 @@ class Import_Twitter_Command {
 
 		try {
 			$this->account_data = $this->get_account_data_from_file();
-		} catch (\Exception $e) {
+		} catch (\Exception) {
 			WP_CLI::error('Error while reading account.js');
 		}
 
@@ -75,14 +76,13 @@ class Import_Twitter_Command {
 
 		WP_CLI::line('Starting Import of ' . count($tweets) . ' tweets');
 
-		for ($i = 0; $i < $total_tweets; $i++) {
-			$tweet = $tweets[$i];
+		foreach ($tweets as $tweet) {
 			$this->tweets_processed++;
 
 			WP_CLI::line("Processing Tweet $this->tweets_processed of $total_tweets");
 
 			if ( $this->does_tweet_already_exist($tweet->id)) {
-				\WP_CLI::success("Tweet already imported, skipping.");
+				WP_CLI::success("Tweet already imported, skipping.");
 				$this->tweets_skipped++;
 				continue;
 			}
@@ -92,14 +92,13 @@ class Import_Twitter_Command {
 				$this->skip_replies &&
 				! isset($this->id_to_post_id_map[$tweet->in_reply_to_status_id]))
 			{
-				\WP_CLI::success("Skipping Reply Tweet");
+				WP_CLI::success("Skipping Reply Tweet");
 				$this->tweets_skipped++;
 				continue;
 			}
 
 			if (
-				isset($tweet->in_reply_to_status_id) &&
-				isset($this->id_to_post_id_map[$tweet->in_reply_to_status_id]))
+				isset($tweet->in_reply_to_status_id, $this->id_to_post_id_map[$tweet->in_reply_to_status_id]))
 			{
 				$comment_id = wp_insert_comment([
 					'comment_post_ID' => $this->id_to_post_id_map[$tweet->in_reply_to_status_id],
@@ -166,9 +165,7 @@ class Import_Twitter_Command {
 		$files[] = $this->data_dir . '/tweets.js';
 		$additional_parts = glob($this->data_dir . '/tweets-part*.js');
 
-		$files = array_merge($files, $additional_parts);
-
-		return $files;
+		return array_merge($files, $additional_parts);
 	}
 
 	/**
@@ -205,7 +202,7 @@ class Import_Twitter_Command {
 			$tweet = $raw_tweet;
 
 			// Remove unused entities
-			// reduce RAM requirements on large archjves
+			// reduce RAM requirements on large archives
 			unset($tweet->tweet->edit_info);
 			unset($tweet->tweet->source);
 			unset($tweet->tweet->lang);
@@ -261,7 +258,8 @@ class Import_Twitter_Command {
 	 * @param int $post_id
 	 * @return void
 	 */
-	private function set_hashtags(\stdClass $tweet, int $post_id) {
+	private function set_hashtags(\stdClass $tweet, int $post_id): void
+	{
 		if (isset($tweet->entities->hashtags)) {
 			$hashtags = [];
 			foreach($tweet->entities->hashtags as $hashtag) {
@@ -278,7 +276,8 @@ class Import_Twitter_Command {
 	 * @param int $post_id
 	 * @return void
 	 */
-	private function set_ticker_symbols(\stdClass $tweet, int $post_id) {
+	private function set_ticker_symbols(\stdClass $tweet, int $post_id): void
+	{
 		if (isset($tweet->entities->symbols)) {
 			$ticker_symbols = [];
 			foreach($tweet->entities->symbols as $symbol) {
@@ -309,7 +308,7 @@ class Import_Twitter_Command {
 				foreach ($this->media_files as $file) {
 					if (str_starts_with($file, $tweet->id)) {
 						$found_filename = $file;
-						\WP_CLI::success('Found Media (' . $media->type . '): ' . $found_filename);
+						WP_CLI::success('Found Media (' . $media->type . '): ' . $found_filename);
 						update_post_meta($post_id, '_tweet_media', $found_filename);
 						update_post_meta($post_id, '_tweet_media_type', $media->type);
 						update_post_meta($post_id, '_tweet_id', $tweet->id);
@@ -366,7 +365,7 @@ class Import_Twitter_Command {
 	 */
 	private function get_post_by_name(string $name): bool
 	{
-		$query = new \WP_Query([
+		$query = new WP_Query([
 			"post_type" => $this->post_type,
 			"name" => $name
 		]);
