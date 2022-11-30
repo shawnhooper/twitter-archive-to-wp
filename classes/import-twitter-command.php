@@ -43,7 +43,6 @@ class Import_Twitter_Command {
 	 */
 	public function __invoke($args, $assoc_args) : void {
 		$this->post_author_id = (int)$args[0];
-
 		$this->skip_replies = isset($assoc_args['skip-replies']);
 
 		if ($this->post_author_id === 0) {
@@ -51,8 +50,9 @@ class Import_Twitter_Command {
 		}
 
 		$this->data_dir = (wp_upload_dir())['basedir'] . '/twitter-archive';
-
 		$files = $this->get_multipart_tweet_archive_filenames();
+
+		do_action('birdsite_import_start');
 
 		try {
 			$this->account_data = $this->get_account_data_from_file();
@@ -64,10 +64,14 @@ class Import_Twitter_Command {
 			$this->process_file($filename);
 		}
 
+		do_action('birdsite_import_end');
+
 	}
 
 	private function process_file(string $filename): void
 	{
+		do_action('birdsite_import_start_of_file', $filename);
+
 		$tweets = $this->get_filtered_result_from_file($filename);
 		usort($tweets, static function ($a, $b) { return strnatcmp($a->id, $b->id); });
 
@@ -100,17 +104,22 @@ class Import_Twitter_Command {
 			if (
 				isset($tweet->in_reply_to_status_id, $this->id_to_post_id_map[$tweet->in_reply_to_status_id]))
 			{
+				do_action('birdsite_import_before_each_comment', $tweet);
+
 				$comment_id = wp_insert_comment([
 					'comment_post_ID' => $this->id_to_post_id_map[$tweet->in_reply_to_status_id],
 					'comment_author' => get_user_by('ID', $this->post_author_id)->display_name,
 					'user_id' =>  $this->post_author_id,
-					'comment_content' => $tweet->full_text,
+					'comment_content' => apply_filters('birdsite_import_comment_tweet_text', $tweet->full_text, $tweet),
 				]);
 
 				add_comment_meta('_tweet_id', $tweet->id, $comment_id, true);
 
 				update_post_meta($this->id_to_post_id_map[$tweet->in_reply_to_status_id], '_is_twitter_thread', '1');
 				$this->id_to_post_id_map[$tweet->id] = $this->id_to_post_id_map[$tweet->in_reply_to_status_id];
+
+				do_action('birdsite_import_after_each_comment', $comment_id, $tweet);
+
 				continue;
 			}
 
@@ -124,6 +133,8 @@ class Import_Twitter_Command {
 			$this->process_media($tweet, $post_id);
 		}
 
+		do_action('birdsite_import_end_of_file', $filename);
+
 		WP_CLI::success('Import Complete - ' . $this->tweets_processed . ' tweets processed, ' . $this->skip_replies . 'skipped');
 	}
 
@@ -133,6 +144,10 @@ class Import_Twitter_Command {
 	 * @return int
 	 */
 	public function process_tweet(\stdClass $tweet, int $post_author) : int {
+		$tweet = apply_filters('birdsite_import_tweet', $tweet);
+
+		do_action('birdsite_import_before_each_tweet', $tweet);
+
 		$created_at = \DateTime::createFromFormat('D M d H:i:s O Y', $tweet->created_at)->format('c');
 
 		$tweet_text = $tweet->full_text;
@@ -149,12 +164,16 @@ class Import_Twitter_Command {
 			'post_author' => $post_author,
 			'post_type' => $this->post_type,
 			'post_status' => 'publish',
-			'post_content' => $tweet_text,
+			'post_content' => apply_filters('birdsite_import_post_tweet_text', $tweet->full_text, $tweet),
 			'post_date' => $created_at,
 			'post_date_gmt' => $created_at,
 		];
 
-		return wp_insert_post($args);
+		$post = wp_insert_post($args);
+
+		do_action('birdsite_import_after_each_tweet', $post);
+
+		return $post;
 
 	}
 
@@ -165,7 +184,7 @@ class Import_Twitter_Command {
 		$files[] = $this->data_dir . '/tweets.js';
 		$additional_parts = glob($this->data_dir . '/tweets-part*.js');
 
-		return array_merge($files, $additional_parts);
+		return apply_filters('birdsite_import_files', array_merge($files, $additional_parts) );
 	}
 
 	/**
@@ -195,7 +214,12 @@ class Import_Twitter_Command {
 		$data = file_get_contents($filepath);
 		$tweets = substr($data, strpos($data, "["));
 
-		$raw_tweets = json_decode($tweets, false, 512, JSON_THROW_ON_ERROR);
+		try {
+			$raw_tweets = json_decode($tweets, false, 512, JSON_THROW_ON_ERROR);
+		} catch (\JsonException $e) {
+			WP_CLI::error("Unable to decode the contents of {$filepath}");
+			die();
+		}
 
 		$tweets = [];
 		foreach ($raw_tweets as $raw_tweet) {
@@ -225,7 +249,7 @@ class Import_Twitter_Command {
 	 * @return string
 	 */
 	private function make_tweet_url(\stdClass $tweet) : string {
-		return 'https://twitter.com/' . $this->account_data->username . '/status/' . $tweet->id;
+		return apply_filters('birdsite_import_tweet_url', 'https://twitter.com/' . $this->account_data->username . '/status/' . $tweet->id, $tweet);
 	}
 
 	/**
@@ -265,6 +289,9 @@ class Import_Twitter_Command {
 			foreach($tweet->entities->hashtags as $hashtag) {
 				$hashtags[] = $hashtag->text;
 			}
+
+			$hashtags = apply_filters('birdsite_import_hashtags', $hashtags, $tweet);
+
 			wp_set_post_terms($post_id, $hashtags, 'birdsite_hashtags', true);
 		}
 	}
@@ -283,6 +310,9 @@ class Import_Twitter_Command {
 			foreach($tweet->entities->symbols as $symbol) {
 				$ticker_symbols[] = '$' . $symbol->text;
 			}
+
+			$ticker_symbols = apply_filters('birdsite_import_ticker_symbols', $ticker_symbols, $tweet);
+
 			wp_set_post_terms($post_id, $ticker_symbols, 'birdsite_hashtags', true);
 		}
 	}
@@ -303,6 +333,8 @@ class Import_Twitter_Command {
 		if (isset($tweet->entities->media)) {
 			foreach($tweet->entities->media as $media) {
 
+				$media = apply_filters('birdsite_import_media', $media, $tweet);
+
 				$filename = null;
 				$found_filename = null;
 				foreach ($this->media_files as $file) {
@@ -316,9 +348,11 @@ class Import_Twitter_Command {
 						$post = get_post($post_id);
 						$post->post_title = str_replace($media->url, '', $post->post_title);
 						$post->filter = true;
-						$post->post_content = "<img src=\"/wp-content/uploads/twitter-archive/tweets_media/{$found_filename}\" />";
+						$post->post_content .= apply_filters('birdsite_import_img_tag', "<img src=\"/wp-content/uploads/twitter-archive/tweets_media/{$found_filename}\" />", $media, $tweet);
 
 						wp_update_post($post);
+
+						do_action('birdsite_import_media_imported', $media, $post);
 
 						break;
 					}
