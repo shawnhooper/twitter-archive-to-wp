@@ -124,7 +124,8 @@ class Import_Twitter_Command {
 
 		if (isset($tweet->entities->urls)) {
 			foreach($tweet->entities->urls as $url) {
-				$tweet_text = str_replace($url->url, $url->expanded_url, $tweet_text);
+				$link_tag = "<a href=\"{$url->expanded_url}\">{$url->display_url}</a>";
+				$tweet_text = str_replace($url->url, $link_tag, $tweet_text);
 			}
 		}
 
@@ -133,8 +134,7 @@ class Import_Twitter_Command {
 			'post_author' => $post_author,
 			'post_type' => 'birdsite_tweet',
 			'post_status' => 'publish',
-			'post_title' => $tweet_text,
-			//'post_content' => json_encode($tweet, JSON_THROW_ON_ERROR),
+			'post_content' => $tweet_text,
 			'post_date' => $created_at,
 			'post_date_gmt' => $created_at,
 		];
