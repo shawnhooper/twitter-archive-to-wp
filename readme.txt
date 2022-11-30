@@ -56,8 +56,15 @@ Thank you to:
 
 * Jann Gobble (https://github.com/janngobble) for helping me test the multipart Twitter Archives
 * Alex Standiford (https://github.com/alexstandiford) and Tim Lyttle (https://github.com/timnolte) for a late night Zoom call and strategy session and this stuff.
+* Ross Wintle (https://github.com/rosswintle) for a large amount of the refactoring into the 2.0.0 release.
 
 == Changelog ==
+
+= 2.0.0 =
+* Save tweet into post_content instead of post_title (allows for HTML links)
+* Save the original tweet URL as _tweet_url postmeta
+* Uses the wp_upload_dir() function to get uploads folder, instead of being hardcoded
+* Wrap links with <a> tags.
 
 = 1.3.0 =
 * Handle Multipart Archives (tweets.js, tweets-part1.js, tweets-part2.js, etc.)
