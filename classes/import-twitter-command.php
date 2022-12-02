@@ -22,6 +22,8 @@ class Import_Twitter_Command {
 	private int $post_author_id = 0;
 	private bool $skip_replies = false;
 
+	private string $base_upload_folder_url;
+
 	/**
 	 * Imports Twitter Data archive to WordPress
 	 *
@@ -44,6 +46,8 @@ class Import_Twitter_Command {
 	public function __invoke($args, $assoc_args) : void {
 		$this->post_author_id = (int)$args[0];
 		$this->skip_replies = isset($assoc_args['skip-replies']);
+		$upload_dir = wp_upload_dir();
+		$this->base_upload_folder_url = $upload_dir['baseurl'];
 
 		if ($this->post_author_id === 0) {
 			WP_CLI::error('Error: invalid post author ID');
@@ -349,7 +353,8 @@ class Import_Twitter_Command {
 						$post = get_post($post_id);
 						$post->post_title = str_replace($media->url, '', $post->post_title);
 						$post->filter = true;
-						$post->post_content .= apply_filters('birdsite_import_img_tag', "<img src=\"/wp-content/uploads/twitter-archive/tweets_media/{$found_filename}\" />", $media, $tweet);
+						$media_url = esc_attr($this->base_upload_folder_url . "/twitter-archive/tweets_media/{$found_filename}");
+						$post->post_content .= apply_filters('birdsite_import_img_tag', "<img src=\"$media_url\" />", $media, $tweet);
 
 						wp_update_post($post);
 
