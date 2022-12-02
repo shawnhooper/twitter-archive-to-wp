@@ -62,6 +62,11 @@ class Tweet_Post_Type {
 				'taxonomies' => ['birdsite_hashtags']
 			)
 		);
+
+		if( !get_option('birdsite_tweet_permalinks_flushed') ) {
+			flush_rewrite_rules();
+			update_option('birdsite_tweet_permalinks_flushed', 1);
+		}
 	}
 
 	public function set_custom_columns(array $columns) : array

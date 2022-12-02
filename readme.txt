@@ -88,6 +88,8 @@ Thank you to:
 = 2.0.1 =
 * Fix < PHP 8.0 error in try catch statements without a declared variable in catch
 * Fixed broken image links when WordPress isn't installed at the root of a domain
+* Flush rewrite rules on activation so that /tweets/ endpoint works
+
 
 = 2.0.0 =
 * Save tweet into post_content instead of post_title (allows for HTML links)
