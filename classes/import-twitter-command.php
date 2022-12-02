@@ -56,8 +56,9 @@ class Import_Twitter_Command {
 
 		try {
 			$this->account_data = $this->get_account_data_from_file();
-		} catch (\Exception) {
-			WP_CLI::error('Error while reading account.js');
+		} catch (\Exception $e) {
+			WP_CLI::error('Error while reading account.js: ' . $e->getMessage());
+			die();
 		}
 
 		foreach($files as $filename) {
@@ -217,7 +218,7 @@ class Import_Twitter_Command {
 		try {
 			$raw_tweets = json_decode($tweets, false, 512, JSON_THROW_ON_ERROR);
 		} catch (\JsonException $e) {
-			WP_CLI::error("Unable to decode the contents of {$filepath}");
+			WP_CLI::error("Unable to decode the contents of {$filepath}: " . $e->getMessage());
 			die();
 		}
 

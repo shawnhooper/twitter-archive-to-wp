@@ -5,7 +5,7 @@ Tags: twitter, archive, wp-cli, import
 Requires at least: 6.0.0
 Tested up to: 6.1
 Requires PHP: 7.4.0
-Stable tag: 2.0.0
+Stable tag: 2.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -84,6 +84,10 @@ Thank you to:
 * Ross Wintle (https://github.com/rosswintle) for a large amount of the refactoring into the 2.0.0 release.
 
 == Changelog ==
+
+= 2.0.1 =
+* Fix < PHP 8.0 error in try catch statements without a declared variable in catch
+
 
 = 2.0.0 =
 * Save tweet into post_content instead of post_title (allows for HTML links)
