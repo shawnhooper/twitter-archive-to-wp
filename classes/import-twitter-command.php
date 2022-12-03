@@ -106,6 +106,15 @@ class Import_Twitter_Command {
 				continue;
 			}
 
+			$tweet_text = $tweet->full_text;
+
+			if (isset($tweet->entities->urls)) {
+				foreach($tweet->entities->urls as $url) {
+					$link_tag = "<a href=\"{$url->expanded_url}\">{$url->display_url}</a>";
+					$tweet_text = str_replace($url->url, $link_tag, $tweet_text);
+				}
+			}
+
 			if (
 				isset($tweet->in_reply_to_status_id, $this->id_to_post_id_map[$tweet->in_reply_to_status_id]))
 			{
@@ -115,7 +124,7 @@ class Import_Twitter_Command {
 					'comment_post_ID' => $this->id_to_post_id_map[$tweet->in_reply_to_status_id],
 					'comment_author' => get_user_by('ID', $this->post_author_id)->display_name,
 					'user_id' =>  $this->post_author_id,
-					'comment_content' => apply_filters('birdsite_import_comment_tweet_text', $tweet->full_text, $tweet),
+					'comment_content' => apply_filters('birdsite_import_comment_tweet_text', $tweet_text, $tweet),
 				]);
 
 				add_comment_meta('_tweet_id', $tweet->id, $comment_id, true);
@@ -169,7 +178,7 @@ class Import_Twitter_Command {
 			'post_author' => $post_author,
 			'post_type' => $this->post_type,
 			'post_status' => 'publish',
-			'post_content' => apply_filters('birdsite_import_post_tweet_text', $tweet->full_text, $tweet),
+			'post_content' => apply_filters('birdsite_import_post_tweet_text', $tweet_text, $tweet),
 			'post_date' => $created_at,
 			'post_date_gmt' => $created_at,
 		];
@@ -354,7 +363,7 @@ class Import_Twitter_Command {
 						$post->post_title = str_replace($media->url, '', $post->post_title);
 						$post->filter = true;
 						$media_url = esc_attr($this->base_upload_folder_url . "/twitter-archive/tweets_media/{$found_filename}");
-						$post->post_content .= apply_filters('birdsite_import_img_tag', "<img src=\"$media_url\" />", $media, $tweet);
+						$post->post_content = str_replace($media->url, apply_filters('birdsite_import_img_tag', "<img src=\"$media_url\" />", $media, $tweet), $post->post_content);
 
 						wp_update_post($post);
 
