@@ -1,0 +1,20 @@
+{
+  "name": "shawnhooper/twitter-archive-to-wp",
+  "description": "Imports Twitter Archive as a custom post type",
+  "type": "wp-cli-package",
+  "homepage": "https://github.com/shawnhooper/twitter-archive-to-wp",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Shawn M. Hooper",
+      "email": "shawn@fivesense.ca",
+      "homepage": "https://www.shawnhooper.ca"
+    }
+  ],
+  "require": {
+    "php": ">=7.4.0"
+  },
+  "autoload": {
+    "files": [ "twitter-archive-to-wp.php" ]
+  }
+}
