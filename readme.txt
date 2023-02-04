@@ -5,7 +5,7 @@ Tags: twitter, archive, wp-cli, import
 Requires at least: 6.0.0
 Tested up to: 6.1
 Requires PHP: 7.4.0
-Stable tag: 2.0.3
+Stable tag: 2.0.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -83,9 +83,12 @@ Thank you to:
 
 * Jann Gobble (https://github.com/janngobble) for helping me test the multipart Twitter Archives
 * Alex Standiford (https://github.com/alexstandiford) and Tim Lyttle (https://github.com/timnolte) for a late night Zoom call and strategy session and this stuff.
-* Ross Wintle (https://github.com/rosswintle) for a large amount of the refactoring into the 2.0.0 release.
+* Ross Wintle (https://github.com/rosswintle) for a large amount of the refactoring into the 2.0.0 release and media import improvements.
 
 == Changelog ==
+
+= 2.0.4 =
+* Import multiple images and videos for a single tweet.
 
 = 2.0.3 =
 * Configured as a WP-CLI package
