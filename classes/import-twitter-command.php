@@ -382,9 +382,9 @@ class Import_Twitter_Command {
 			foreach($tweet->extended_entities->media as $media) {
 				$media = apply_filters('birdsite_import_media', $media, $tweet);
 
-				if ($media->type === 'video') {
+				if ($this->media_is_video($media)) {
 					$media_id = $this->find_video_id_from_variants($media, $tweet_media_filenames);
-				} elseif ($media->type === 'photo') {
+				} elseif ($this->media_is_photo($media)) {
 					$media_id = array_slice(explode('/', $media->media_url), -1, 1)[0];
 				} else {
 					WP_CLI::warning('Unknown media type: ' . $media->type);
@@ -414,10 +414,10 @@ class Import_Twitter_Command {
                 $post->filter = true;
                 $media_url = esc_attr($this->base_upload_folder_url . "/twitter-archive/tweets_media/{$media_filename}");
 
-				if ($media->type === 'video') {
+				if ($this->media_is_video($media)) {
 					// Add to the Tweet video tags
 					$tweet_video_tags .= apply_filters('birdsite_import_video_tag', "<video controls><source src=\"$media_url\" /></video>", $media, $tweet);
-				} elseif ($media->type === 'photo') {
+				} elseif ($this->media_is_photo($media)) {
 					// Add to the Tweet img tags
 					$tweet_img_tags .= apply_filters('birdsite_import_img_tag', "<img src=\"$media_url\" />", $media, $tweet);
 				}
@@ -444,7 +444,7 @@ class Import_Twitter_Command {
 	 * Returns the media ID of the video file (the last part of the filename), or
 	 * an empty string if no match is found.
 	 *
-	 * @param  array $media
+	 * @param  object $media
 	 * @param  array $tweet_media_filenames
 	 * @return string
 	 */
@@ -465,6 +465,26 @@ class Import_Twitter_Command {
 		}
 
 		return '';
+	}
+
+	/**
+	 * Returns true if the media object is a video.
+	 *
+	 * @param  object $media  A media object from the tweets.js format
+	 * @return bool
+	 */
+	private function media_is_video($media) {
+		return in_array( $media->type, ['video', 'animated_gif'] );
+	}
+
+	/**
+	 * Returns true if the media object is a photo.
+	 *
+	 * @param  object $media  A media object from the tweets.js format
+	 * @return bool
+	 */
+	private function media_is_photo($media) {
+		return in_array( $media->type, ['photo'] );
 	}
 
 	/**
