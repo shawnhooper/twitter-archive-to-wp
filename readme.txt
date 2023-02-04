@@ -63,7 +63,8 @@ This plugin doesn't need more than that at the moment.
 * birdsite_import_media -- A single media (video or image) being imported from the archive
 * birdsite_import_img_tag -- The <img> tag added the post_content to embed an image
 * birdsite_import_img_tags -- The collected <img> tags added the post_content to embed all images
-*
+* birdsite_import_video_tag -- The <video> tag added the post_content to embed a video
+* birdsite_import_video_tags -- The collected <video> tags added the post_content to embed all videos
 
 == Starting Over ==
 

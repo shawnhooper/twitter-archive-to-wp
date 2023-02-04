@@ -155,6 +155,7 @@ class Import_Twitter_Command {
 			}
 
 			$post_id = $this->process_tweet($tweet, $this->post_author_id);
+			WP_CLI::line('Added with post ID ' . $post_id);
 
             update_post_meta($post_id, '_tweet_id', $tweet->id);
 
@@ -367,17 +368,27 @@ class Import_Twitter_Command {
             $tweet_media_filenames = $this->media_files_by_tweet[$tweet->id] ?? [];
 
             // The tweet contains a single short URL that represents the images
-            // We will construct a string of HTML img tags to replace the URL
+            // We will construct strings of HTML img and video tags to replace the URL
             $tweet_img_tags = '';
+            $tweet_video_tags = '';
 
 			foreach($tweet->extended_entities->media as $media) {
 				$media = apply_filters('birdsite_import_media', $media, $tweet);
+
+				if ($media->type === 'video') {
+					$media_id = $this->find_video_id_from_variants($media, $tweet_media_filenames);
+				} elseif ($media->type === 'photo') {
+					$media_id = array_slice(explode('/', $media->media_url), -1, 1)[0];
+				} else {
+					WP_CLI::warning('Unknown media type: ' . $media->type);
+					continue;
+				}
 
                 // We will check that that files exists. For speed we cached all
                 // the filenames in the media_files_by_tweet array on initialisation.
                 // URLs are like http://pbs.twimg.com/media/<media-id>.jpg
                 // But the file names in the export are like <tweet-id>-<media-id>.ext
-                $media_id = array_slice(explode('/', $media->media_url), -1, 1)[0];
+
                 $media_filename = $tweet->id . '-' . $media_id;
 
                 if (! in_array($media_filename, $tweet_media_filenames)) {
@@ -392,18 +403,57 @@ class Import_Twitter_Command {
                 $post->filter = true;
                 $media_url = esc_attr($this->base_upload_folder_url . "/twitter-archive/tweets_media/{$media_filename}");
 
-                // Add to the Tweet image tags
-                $tweet_img_tags .= apply_filters('birdsite_import_img_tag', "<img src=\"$media_url\" />", $media, $tweet);
+				if ($media->type === 'video') {
+					// Add to the Tweet video tags
+					$tweet_video_tags .= apply_filters('birdsite_import_video_tag', "<video controls><source src=\"$media_url\" /></video>", $media, $tweet);
+				} elseif ($media->type === 'photo') {
+					// Add to the Tweet img tags
+					$tweet_img_tags .= apply_filters('birdsite_import_img_tag', "<img src=\"$media_url\" />", $media, $tweet);
+				}
 
                 $media_index++;
 			}
 
-            $post->post_content = str_replace($tweet->entities->media[0]->url, apply_filters( 'birdsite_import_img_tags', $tweet_img_tags, $tweet ), $post->post_content);
+			$media_content =
+				apply_filters( 'birdsite_import_video_tags', $tweet_video_tags, $tweet )
+				. apply_filters( 'birdsite_import_img_tags', $tweet_img_tags, $tweet );
+
+			$post->post_content = str_replace($tweet->entities->media[0]->url, $media_content, $post->post_content);
 
             wp_update_post($post);
 
             do_action('birdsite_import_media_imported', $media, $post);
 		}
+	}
+
+	/**
+	 * Takes a media object from the tweets.js format, and searches its video variants
+	 * for a file that matches one of the filenames we saved on initialisation.
+	 *
+	 * Returns the media ID of the video file (the last part of the filename), or
+	 * an empty string if no match is found.
+	 *
+	 * @param  array $media
+	 * @param  array $tweet_media_filenames
+	 * @return string
+	 */
+	private function find_video_id_from_variants($media, $tweet_media_filenames) {
+		// Look at each video variant, and see if we have a matching file
+		foreach ($media->video_info->variants as $variant) {
+			$media_id = array_slice(explode('/', $variant->url), -1, 1)[0];
+			// It might have parameters on the end, so remove them
+			$media_id = explode('?', $media_id)[0];
+
+			$matching_filenames = array_filter($tweet_media_filenames, function($filename) use ($media_id) {
+				return strpos($filename, $media_id) !== false;
+			});
+
+			if (count($matching_filenames) > 0) {
+				return $media_id;
+			}
+		}
+
+		return '';
 	}
 
 	/**
