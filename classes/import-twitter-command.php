@@ -14,6 +14,9 @@ class Import_Twitter_Command {
 
 	private int $tweets_processed = 0;
 	private int $tweets_skipped = 0;
+	private int $media_found = 0;
+	private int $media_not_found = 0;
+	private int $media_bad_type = 0;
 
 	private array $media_files_by_tweet = [];
 
@@ -155,7 +158,6 @@ class Import_Twitter_Command {
 			}
 
 			$post_id = $this->process_tweet($tweet, $this->post_author_id);
-			WP_CLI::line('Added with post ID ' . $post_id);
 
             update_post_meta($post_id, '_tweet_id', $tweet->id);
 
@@ -169,7 +171,12 @@ class Import_Twitter_Command {
 
 		do_action('birdsite_import_end_of_file', $filename);
 
-		WP_CLI::success('Import Complete - ' . $this->tweets_processed . ' tweets processed, ' . $this->tweets_skipped . 'skipped');
+		WP_CLI::success('Import Complete!');
+		WP_CLI::success("$this->tweets_processed tweets processed");
+		WP_CLI::success("$this->tweets_skipped tweets skipped");
+		WP_CLI::success("$this->media_found media found");
+		WP_CLI::success("$this->media_not_found media not found");
+		WP_CLI::success("$this->media_bad_type media had an unknown type");
 	}
 
 	/**
@@ -381,6 +388,7 @@ class Import_Twitter_Command {
 					$media_id = array_slice(explode('/', $media->media_url), -1, 1)[0];
 				} else {
 					WP_CLI::warning('Unknown media type: ' . $media->type);
+					$this->media_bad_type++;
 					continue;
 				}
 
@@ -393,10 +401,13 @@ class Import_Twitter_Command {
 
                 if (! in_array($media_filename, $tweet_media_filenames)) {
                     WP_CLI::warning('Media file not found for tweet ' . $tweet->id);
+					$this->media_not_found++;
                     continue;
                 }
 
                 WP_CLI::success('Found Media (' . $media->type . '): ' . $media_filename);
+				$this->media_found++;
+
                 update_post_meta($post_id, '_tweet_media_' . $media_index, $media_filename);
                 update_post_meta($post_id, '_tweet_media_type_' . $media_index, $media->type);
 
