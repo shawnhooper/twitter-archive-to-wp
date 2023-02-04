@@ -15,7 +15,7 @@ class Import_Twitter_Command {
 	private int $tweets_processed = 0;
 	private int $tweets_skipped = 0;
 
-	private array $media_files = [];
+	private array $media_files_by_tweet = [];
 
 	private array $id_to_post_id_map = [];
 
@@ -65,6 +65,8 @@ class Import_Twitter_Command {
 			die();
 		}
 
+        $this->load_media_files();
+
 		foreach($files as $filename) {
 			$this->process_file($filename);
 		}
@@ -72,6 +74,21 @@ class Import_Twitter_Command {
 		do_action('birdsite_import_end');
 
 	}
+
+    private function load_media_files() {
+        $filename_list = scandir($this->data_dir . '/tweets_media');
+
+        // Add keys to the array so we can use isset() later
+        foreach ($filename_list as $filename) {
+            $file_tweet_id = explode('-', $filename)[0];
+
+            if ( ! isset($this->media_files_by_tweet[$file_tweet_id]) ) {
+                $this->media_files_by_tweet[$file_tweet_id] = [];
+            }
+
+            array_push($this->media_files_by_tweet[$file_tweet_id], $filename);
+        }
+    }
 
 	private function process_file(string $filename): void
 	{
@@ -88,7 +105,7 @@ class Import_Twitter_Command {
 		foreach ($tweets as $tweet) {
 			$this->tweets_processed++;
 
-			WP_CLI::line("Processing Tweet $this->tweets_processed of $total_tweets");
+			WP_CLI::line("Processing Tweet $this->tweets_processed of $total_tweets (ID: {$tweet->id})");
 
 			if ( $this->does_tweet_already_exist($tweet->id)) {
 				WP_CLI::success("Tweet already imported, skipping.");
@@ -138,6 +155,8 @@ class Import_Twitter_Command {
 			}
 
 			$post_id = $this->process_tweet($tweet, $this->post_author_id);
+
+            update_post_meta($post_id, '_tweet_id', $tweet->id);
 
 			$this->id_to_post_id_map[$tweet->id] = $post_id;
 
@@ -340,44 +359,50 @@ class Import_Twitter_Command {
 	 */
 	private function process_media(\stdClass $tweet, int $post_id): void
 	{
-		if ( count($this->media_files) === 0) {
-			$this->media_files = scandir($this->data_dir . '/tweets_media');
-		}
-
 		if (isset($tweet->entities->media)) {
-			foreach($tweet->entities->media as $media) {
+            $media_index = 0;
 
+            // Get the post and the tweet media filenames we saved on initialisation
+            $post = get_post($post_id);
+            $tweet_media_filenames = $this->media_files_by_tweet[$tweet->id] ?? [];
+
+            // The tweet contains a single short URL that represents the images
+            // We will construct a string of HTML img tags to replace the URL
+            $tweet_img_tags = '';
+
+			foreach($tweet->extended_entities->media as $media) {
 				$media = apply_filters('birdsite_import_media', $media, $tweet);
 
-				$filename = null;
-				$found_filename = null;
-				foreach ($this->media_files as $file) {
-					if (str_starts_with($file, $tweet->id)) {
-						$found_filename = $file;
-						WP_CLI::success('Found Media (' . $media->type . '): ' . $found_filename);
-						update_post_meta($post_id, '_tweet_media', $found_filename);
-						update_post_meta($post_id, '_tweet_media_type', $media->type);
-						update_post_meta($post_id, '_tweet_id', $tweet->id);
+                // We will check that that files exists. For speed we cached all
+                // the filenames in the media_files_by_tweet array on initialisation.
+                // URLs are like http://pbs.twimg.com/media/<media-id>.jpg
+                // But the file names in the export are like <tweet-id>-<media-id>.ext
+                $media_id = array_slice(explode('/', $media->media_url), -1, 1)[0];
+                $media_filename = $tweet->id . '-' . $media_id;
 
-						$post = get_post($post_id);
-						$post->post_title = str_replace($media->url, '', $post->post_title);
-						$post->filter = true;
-						$media_url = esc_attr($this->base_upload_folder_url . "/twitter-archive/tweets_media/{$found_filename}");
-						$post->post_content = str_replace($media->url, apply_filters('birdsite_import_img_tag', "<img src=\"$media_url\" />", $media, $tweet), $post->post_content);
+                if (! in_array($media_filename, $tweet_media_filenames)) {
+                    WP_CLI::warning('Media file not found for tweet ' . $tweet->id);
+                    continue;
+                }
 
-						wp_update_post($post);
+                WP_CLI::success('Found Media (' . $media->type . '): ' . $media_filename);
+                update_post_meta($post_id, '_tweet_media_' . $media_index, $media_filename);
+                update_post_meta($post_id, '_tweet_media_type_' . $media_index, $media->type);
 
-						do_action('birdsite_import_media_imported', $media, $post);
+                $post->filter = true;
+                $media_url = esc_attr($this->base_upload_folder_url . "/twitter-archive/tweets_media/{$media_filename}");
 
-						break;
-					}
-				}
+                // Add to the Tweet image tags
+                $tweet_img_tags .= apply_filters('birdsite_import_img_tag', "<img src=\"$media_url\" />", $media, $tweet);
 
-				if ( $found_filename === null ) {
-					WP_CLI::warning('Unable to find media (' . $media->type . '): ' . $filename);
-				}
-
+                $media_index++;
 			}
+
+            $post->post_content = str_replace($tweet->entities->media[0]->url, apply_filters( 'birdsite_import_img_tags', $tweet_img_tags, $tweet ), $post->post_content);
+
+            wp_update_post($post);
+
+            do_action('birdsite_import_media_imported', $media, $post);
 		}
 	}
 

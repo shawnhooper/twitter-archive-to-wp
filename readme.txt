@@ -61,7 +61,8 @@ This plugin doesn't need more than that at the moment.
 * birdsite_import_hashtags -- The list of hashtags to be imported for a single tweet
 * birdsite_import_ticker_symbols -- The list of hashtags to be imported for a single tweet
 * birdsite_import_media -- A single media (video or image) being imported from the archive
-* birdsite_import_img_tag -- The <img> tag added the post_content to embed image
+* birdsite_import_img_tag -- The <img> tag added the post_content to embed an image
+* birdsite_import_img_tags -- The collected <img> tags added the post_content to embed all images
 *
 
 == Starting Over ==
