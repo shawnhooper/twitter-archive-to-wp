@@ -14,8 +14,11 @@ class Import_Twitter_Command {
 
 	private int $tweets_processed = 0;
 	private int $tweets_skipped = 0;
+	private int $media_found = 0;
+	private int $media_not_found = 0;
+	private int $media_bad_type = 0;
 
-	private array $media_files = [];
+	private array $media_files_by_tweet = [];
 
 	private array $id_to_post_id_map = [];
 
@@ -65,6 +68,8 @@ class Import_Twitter_Command {
 			die();
 		}
 
+        $this->load_media_files();
+
 		foreach($files as $filename) {
 			$this->process_file($filename);
 		}
@@ -72,6 +77,21 @@ class Import_Twitter_Command {
 		do_action('birdsite_import_end');
 
 	}
+
+    private function load_media_files() {
+        $filename_list = scandir($this->data_dir . '/tweets_media');
+
+        // Add keys to the array so we can use isset() later
+        foreach ($filename_list as $filename) {
+            $file_tweet_id = explode('-', $filename)[0];
+
+            if ( ! isset($this->media_files_by_tweet[$file_tweet_id]) ) {
+                $this->media_files_by_tweet[$file_tweet_id] = [];
+            }
+
+            array_push($this->media_files_by_tweet[$file_tweet_id], $filename);
+        }
+    }
 
 	private function process_file(string $filename): void
 	{
@@ -88,7 +108,7 @@ class Import_Twitter_Command {
 		foreach ($tweets as $tweet) {
 			$this->tweets_processed++;
 
-			WP_CLI::line("Processing Tweet $this->tweets_processed of $total_tweets");
+			WP_CLI::line("Processing Tweet $this->tweets_processed of $total_tweets (ID: {$tweet->id})");
 
 			if ( $this->does_tweet_already_exist($tweet->id)) {
 				WP_CLI::success("Tweet already imported, skipping.");
@@ -139,6 +159,8 @@ class Import_Twitter_Command {
 
 			$post_id = $this->process_tweet($tweet, $this->post_author_id);
 
+            update_post_meta($post_id, '_tweet_id', $tweet->id);
+
 			$this->id_to_post_id_map[$tweet->id] = $post_id;
 
 			$this->set_postmeta($tweet, $post_id);
@@ -149,7 +171,12 @@ class Import_Twitter_Command {
 
 		do_action('birdsite_import_end_of_file', $filename);
 
-		WP_CLI::success('Import Complete - ' . $this->tweets_processed . ' tweets processed, ' . $this->tweets_skipped . 'skipped');
+		WP_CLI::success('Import Complete!');
+		WP_CLI::success("$this->tweets_processed tweets processed");
+		WP_CLI::success("$this->tweets_skipped tweets skipped");
+		WP_CLI::success("$this->media_found media found");
+		WP_CLI::success("$this->media_not_found media not found");
+		WP_CLI::success("$this->media_bad_type media had an unknown type");
 	}
 
 	/**
@@ -340,45 +367,124 @@ class Import_Twitter_Command {
 	 */
 	private function process_media(\stdClass $tweet, int $post_id): void
 	{
-		if ( count($this->media_files) === 0) {
-			$this->media_files = scandir($this->data_dir . '/tweets_media');
-		}
-
 		if (isset($tweet->entities->media)) {
-			foreach($tweet->entities->media as $media) {
+            $media_index = 0;
 
+            // Get the post and the tweet media filenames we saved on initialisation
+            $post = get_post($post_id);
+            $tweet_media_filenames = $this->media_files_by_tweet[$tweet->id] ?? [];
+
+            // The tweet contains a single short URL that represents the images
+            // We will construct strings of HTML img and video tags to replace the URL
+            $tweet_img_tags = '';
+            $tweet_video_tags = '';
+
+			foreach($tweet->extended_entities->media as $media) {
 				$media = apply_filters('birdsite_import_media', $media, $tweet);
 
-				$filename = null;
-				$found_filename = null;
-				foreach ($this->media_files as $file) {
-					if (str_starts_with($file, $tweet->id)) {
-						$found_filename = $file;
-						WP_CLI::success('Found Media (' . $media->type . '): ' . $found_filename);
-						update_post_meta($post_id, '_tweet_media', $found_filename);
-						update_post_meta($post_id, '_tweet_media_type', $media->type);
-						update_post_meta($post_id, '_tweet_id', $tweet->id);
-
-						$post = get_post($post_id);
-						$post->post_title = str_replace($media->url, '', $post->post_title);
-						$post->filter = true;
-						$media_url = esc_attr($this->base_upload_folder_url . "/twitter-archive/tweets_media/{$found_filename}");
-						$post->post_content = str_replace($media->url, apply_filters('birdsite_import_img_tag', "<img src=\"$media_url\" />", $media, $tweet), $post->post_content);
-
-						wp_update_post($post);
-
-						do_action('birdsite_import_media_imported', $media, $post);
-
-						break;
-					}
+				if ($this->media_is_video($media)) {
+					$media_id = $this->find_video_id_from_variants($media, $tweet_media_filenames);
+				} elseif ($this->media_is_photo($media)) {
+					$media_id = array_slice(explode('/', $media->media_url), -1, 1)[0];
+				} else {
+					WP_CLI::warning('Unknown media type: ' . $media->type);
+					$this->media_bad_type++;
+					continue;
 				}
 
-				if ( $found_filename === null ) {
-					WP_CLI::warning('Unable to find media (' . $media->type . '): ' . $filename);
+                // We will check that that files exists. For speed we cached all
+                // the filenames in the media_files_by_tweet array on initialisation.
+                // URLs are like http://pbs.twimg.com/media/<media-id>.jpg
+                // But the file names in the export are like <tweet-id>-<media-id>.ext
+
+                $media_filename = $tweet->id . '-' . $media_id;
+
+                if (! in_array($media_filename, $tweet_media_filenames)) {
+                    WP_CLI::warning('Media file not found for tweet ' . $tweet->id);
+					$this->media_not_found++;
+                    continue;
+                }
+
+                WP_CLI::success('Found Media (' . $media->type . '): ' . $media_filename);
+				$this->media_found++;
+
+                update_post_meta($post_id, '_tweet_media_' . $media_index, $media_filename);
+                update_post_meta($post_id, '_tweet_media_type_' . $media_index, $media->type);
+
+                $post->filter = true;
+                $media_url = esc_attr($this->base_upload_folder_url . "/twitter-archive/tweets_media/{$media_filename}");
+
+				if ($this->media_is_video($media)) {
+					// Add to the Tweet video tags
+					$tweet_video_tags .= apply_filters('birdsite_import_video_tag', "<video controls><source src=\"$media_url\" /></video>", $media, $tweet);
+				} elseif ($this->media_is_photo($media)) {
+					// Add to the Tweet img tags
+					$tweet_img_tags .= apply_filters('birdsite_import_img_tag', "<img src=\"$media_url\" />", $media, $tweet);
 				}
 
+                $media_index++;
+			}
+
+			$media_content =
+				apply_filters( 'birdsite_import_video_tags', $tweet_video_tags, $tweet )
+				. apply_filters( 'birdsite_import_img_tags', $tweet_img_tags, $tweet );
+
+			$post->post_content = str_replace($tweet->entities->media[0]->url, $media_content, $post->post_content);
+
+            wp_update_post($post);
+
+            do_action('birdsite_import_media_imported', $media, $post);
+		}
+	}
+
+	/**
+	 * Takes a media object from the tweets.js format, and searches its video variants
+	 * for a file that matches one of the filenames we saved on initialisation.
+	 *
+	 * Returns the media ID of the video file (the last part of the filename), or
+	 * an empty string if no match is found.
+	 *
+	 * @param  object $media
+	 * @param  array $tweet_media_filenames
+	 * @return string
+	 */
+	private function find_video_id_from_variants($media, $tweet_media_filenames) {
+		// Look at each video variant, and see if we have a matching file
+		foreach ($media->video_info->variants as $variant) {
+			$media_id = array_slice(explode('/', $variant->url), -1, 1)[0];
+			// It might have parameters on the end, so remove them
+			$media_id = explode('?', $media_id)[0];
+
+			$matching_filenames = array_filter($tweet_media_filenames, function($filename) use ($media_id) {
+				return strpos($filename, $media_id) !== false;
+			});
+
+			if (count($matching_filenames) > 0) {
+				return $media_id;
 			}
 		}
+
+		return '';
+	}
+
+	/**
+	 * Returns true if the media object is a video.
+	 *
+	 * @param  object $media  A media object from the tweets.js format
+	 * @return bool
+	 */
+	private function media_is_video($media) {
+		return in_array( $media->type, ['video', 'animated_gif'] );
+	}
+
+	/**
+	 * Returns true if the media object is a photo.
+	 *
+	 * @param  object $media  A media object from the tweets.js format
+	 * @return bool
+	 */
+	private function media_is_photo($media) {
+		return in_array( $media->type, ['photo'] );
 	}
 
 	/**

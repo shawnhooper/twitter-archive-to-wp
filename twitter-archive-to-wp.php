@@ -7,7 +7,7 @@
  * Author URI:      https://shawnhooper.ca/
  * Text Domain:     birdsite-archive
  * Domain Path:     /languages
- * Version:         2.0.3
+ * Version:         2.0.4
  *
  * @package         Birdsite_Archive
  */

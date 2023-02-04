@@ -5,7 +5,7 @@ Tags: twitter, archive, wp-cli, import
 Requires at least: 6.0.0
 Tested up to: 6.1
 Requires PHP: 7.4.0
-Stable tag: 2.0.3
+Stable tag: 2.0.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -61,8 +61,10 @@ This plugin doesn't need more than that at the moment.
 * birdsite_import_hashtags -- The list of hashtags to be imported for a single tweet
 * birdsite_import_ticker_symbols -- The list of hashtags to be imported for a single tweet
 * birdsite_import_media -- A single media (video or image) being imported from the archive
-* birdsite_import_img_tag -- The <img> tag added the post_content to embed image
-*
+* birdsite_import_img_tag -- The <img> tag added the post_content to embed an image
+* birdsite_import_img_tags -- The collected <img> tags added the post_content to embed all images
+* birdsite_import_video_tag -- The <video> tag added the post_content to embed a video
+* birdsite_import_video_tags -- The collected <video> tags added the post_content to embed all videos
 
 == Starting Over ==
 
@@ -81,9 +83,12 @@ Thank you to:
 
 * Jann Gobble (https://github.com/janngobble) for helping me test the multipart Twitter Archives
 * Alex Standiford (https://github.com/alexstandiford) and Tim Lyttle (https://github.com/timnolte) for a late night Zoom call and strategy session and this stuff.
-* Ross Wintle (https://github.com/rosswintle) for a large amount of the refactoring into the 2.0.0 release.
+* Ross Wintle (https://github.com/rosswintle) for a large amount of the refactoring into the 2.0.0 release and media import improvements.
 
 == Changelog ==
+
+= 2.0.4 =
+* Import multiple images and videos for a single tweet.
 
 = 2.0.3 =
 * Configured as a WP-CLI package
