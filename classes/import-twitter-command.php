@@ -205,6 +205,12 @@ class Import_Twitter_Command {
 				continue;
 			}
 
+			if ($this->skip_replies && strpos(trim($tweet->full_text), '@') === 0) {
+				WP_CLI::success("Skipping Tweet as it starts with '@'");
+				$this->tweets_skipped++;
+				continue;
+			}
+
 			$tweet_text = $tweet->full_text;
 
 			if (isset($tweet->entities->urls)) {
