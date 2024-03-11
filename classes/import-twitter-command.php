@@ -6,7 +6,9 @@ use WP_Query;
 
 class Import_Twitter_Command {
 
-	private string $post_type = 'birdsite_tweet';
+	private string $post_type;
+
+	private string $hashtag_taxonomy;
 
 	private string $data_dir = '';
 
@@ -35,16 +37,27 @@ class Import_Twitter_Command {
 	 * [--skip-replies]
 	 * : Skip tweets that are replies to someone else
 	 *
+	 *
+	 * [--hashtag-taxonomy]
+	 * : Specifies the taxonomy to use when importing hashtags and tickers. Defaults to birdsite_hashtags
 	 * ---
 	 *
 	 * ## EXAMPLES
 	 *
+	 *     Import Tweets using birdsite_tweet post type and birdsite_hashtags
 	 *     wp import-twitter 1
+	 *
+	 *     Import Tweets into default post type and tag type.
+	 *     wp import-twitter 1 --post-type post --hashtag-taxonomy post_tag
 	 *
 	 * @when after_wp_load
 	 */
 	public function __invoke($args, $assoc_args) : void {
 		$this->post_author_id = (int)$args[0];
+		$this->hashtag_taxonomy = isset($assoc_args['hashtag-taxonomy']) ? $assoc_args['hashtag-taxonomy'] : 'birdsite_hashtags';
+		if (! taxonomy_exists($this->hashtag_taxonomy)) {
+			WP_CLI::error('Error: invalid taxonomy.');
+		}
 		$this->skip_replies = isset($assoc_args['skip-replies']);
 		$upload_dir = wp_upload_dir();
 		$this->base_upload_folder_url = $upload_dir['baseurl'];
@@ -306,7 +319,7 @@ class Import_Twitter_Command {
 
 			$hashtags = apply_filters('birdsite_import_hashtags', $hashtags, $tweet);
 
-			wp_set_post_terms($post_id, $hashtags, 'birdsite_hashtags', true);
+			wp_set_post_terms($post_id, $hashtags, $this->hashtag_taxonomy, true);
 		}
 	}
 
@@ -327,7 +340,7 @@ class Import_Twitter_Command {
 
 			$ticker_symbols = apply_filters('birdsite_import_ticker_symbols', $ticker_symbols, $tweet);
 
-			wp_set_post_terms($post_id, $ticker_symbols, 'birdsite_hashtags', true);
+			wp_set_post_terms($post_id, $ticker_symbols, $this->hashtag_taxonomy, true);
 		}
 	}
 
