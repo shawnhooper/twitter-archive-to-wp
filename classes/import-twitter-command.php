@@ -72,6 +72,7 @@ class Import_Twitter_Command {
 	public function __invoke($args, $assoc_args) : void {
 		$this->post_type = isset($assoc_args['post-type']) ? $assoc_args['post-type'] : 'birdsite_tweet';
 		$this->hashtag_taxonomy = isset($assoc_args['hashtag-taxonomy']) ? $assoc_args['hashtag-taxonomy'] : 'birdsite_hashtags';
+		$this->use_aside_format = isset($assoc_args['use-aside-format']);
 
 		if (! post_type_exists($this->post_type)) {
 			WP_CLI::error('Error: invalid post type.');
@@ -213,6 +214,9 @@ class Import_Twitter_Command {
 			$this->set_hashtags($tweet, $post_id);
 			$this->set_ticker_symbols($tweet, $post_id);
 			$this->process_media($tweet, $post_id);
+				if ($this->use_aside_format) {
+					set_post_format(get_post($post_id), 'aside');
+				}
 		}
 
 		do_action('birdsite_import_end_of_file', $filename);
