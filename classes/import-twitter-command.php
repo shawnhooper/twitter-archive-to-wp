@@ -296,8 +296,30 @@ class Import_Twitter_Command {
 			}
 		}
 
+		if (isset($tweet->extended_entities->media)) {
+			foreach ($tweet->extended_entities->media as $media) {
+				$tweet_text = str_replace($media->url, '', $tweet_text);
+			}
+		} else if (isset($tweet->entities->media)) {
+			foreach ($tweet->entities->media as $media) {
+				$tweet_text = str_replace($media->url, '', $tweet_text);
+			}
+		}
+
+		if (empty(trim($tweet_text))) {
+			// Check if there's media attached to the tweet
+			if (isset($tweet->extended_entities->media) || isset($tweet->entities->media)) {
+				// If there's media, set a default content
+				// This is necessary because post content cannot be empty.
+				$tweet_text = 'Media attached';
+			} else {
+				// If there's no text and no media, skip the post creation
+				WP_CLI::warning("Skipping tweet $tweet->id_str as it has no content.");
+				return 0;
+			}
+		}
+
 		$args = [
-			'post_name' => $tweet->id,
 			'post_author' => $post_author,
 			'post_type' => $this->post_type,
 			'post_status' => 'publish',
@@ -467,41 +489,94 @@ class Import_Twitter_Command {
 			$this->media_files = scandir($this->data_dir . '/tweets_media');
 		}
 
-		if (isset($tweet->entities->media)) {
-			foreach($tweet->entities->media as $media) {
+		$image_ids = [];
 
-				$media = apply_filters('birdsite_import_media', $media, $tweet);
+		$media_entities = $tweet->extended_entities->media ?? $tweet->entities->media ?? [];
 
-				$filename = null;
-				$found_filename = null;
-				foreach ($this->media_files as $file) {
-					if (str_starts_with($file, $tweet->id)) {
-						$found_filename = $file;
-						WP_CLI::success('Found Media (' . $media->type . '): ' . $found_filename);
-						update_post_meta($post_id, '_tweet_media', $found_filename);
-						update_post_meta($post_id, '_tweet_media_type', $media->type);
-						update_post_meta($post_id, '_tweet_id', $tweet->id);
+		foreach ($media_entities as $media) {
+			$media = apply_filters('birdsite_import_media', $media, $tweet);
+			$found_filename = null;
 
-						$post = get_post($post_id);
-						$post->post_title = str_replace($media->url, '', $post->post_title);
-						$post->filter = true;
-						$media_url = esc_attr($this->base_upload_folder_url . "/twitter-archive/tweets_media/{$found_filename}");
-						$post->post_content = str_replace($media->url, apply_filters('birdsite_import_img_tag', "<img src=\"$media_url\" />", $media, $tweet), $post->post_content);
-
-						wp_update_post($post);
-
-						do_action('birdsite_import_media_imported', $media, $post);
-
-						break;
-					}
+			foreach ($this->media_files as $file) {
+				if (str_starts_with($file, $tweet->id)) {
+					$found_filename = $file;
+					break;
 				}
+			}
 
-				if ( $found_filename === null ) {
-					WP_CLI::warning('Unable to find media (' . $media->type . '): ' . $filename);
+			if ($found_filename !== null) {
+				$file_path = $this->data_dir . '/tweets_media/' . $found_filename;
+				$attach_id = $this->attach_media_to_library($file_path, $post_id);
+
+				$full_size_url = wp_get_attachment_url($attach_id);
+
+				if ($media->type === 'photo') {
+					$image_ids[] = ['id' => $attach_id, 'url' => $full_size_url];
+				} else if ($media->type === 'video') {
+					$block_content = "<!-- wp:video --><figure class=\"wp-block-video\"><video controls src=\"$full_size_url\"></video></figure><!-- /wp:video -->";
+					$this->insert_content_at_end_of_post($post_id, $block_content);
 				}
-
+			} else {
+				WP_CLI::warning('Unable to find media (' . $media->type . '): ' . $found_filename);
 			}
 		}
+
+		if (count($image_ids) > 1) {
+			// For galleries, create the block with full-size image URLs
+			$block_content = $this->build_gallery_block($image_ids);
+			$this->insert_content_at_end_of_post($post_id, $block_content);
+		} elseif (count($image_ids) === 1) {
+			// For a single image, insert the full-size image block
+			$image = $image_ids[0];
+			$block_content = "<!-- wp:image {\"id\":{$image['id']},\"sizeSlug\":\"full\"} --><figure class=\"wp-block-image\"><img src=\"{$image['url']}\" alt=\"\" class=\"wp-image-{$image['id']}\"/></figure><!-- /wp:image -->";
+			$this->insert_content_at_end_of_post($post_id, $block_content);
+		}
+	}
+
+	private function build_gallery_block($image_ids) {
+		// Build gallery block with full-size images
+		$block_content = "<!-- wp:gallery {\"linkTo\":\"file\"} --><ul class=\"wp-block-gallery columns=" . count($image_ids) . " is-cropped\">";
+		foreach ($image_ids as $image) {
+			$block_content .= "<li class=\"blocks-gallery-item\"><figure><img src=\"{$image['url']}\" alt=\"\" data-id=\"{$image['id']}\" class=\"wp-image-{$image['id']}\"/></figure></li>";
+		}
+		$block_content .= "</ul><!-- /wp:gallery -->";
+		return $block_content;
+	}
+
+	private function insert_content_at_end_of_post($post_id, $content_to_insert) {
+		$post = get_post($post_id);
+		$post->post_content .= $content_to_insert;
+		wp_update_post($post);
+	}
+
+	function attach_media_to_library($file_path, $post_id) {
+		require_once(ABSPATH . 'wp-admin/includes/image.php');
+		require_once(ABSPATH . 'wp-admin/includes/file.php');
+		require_once(ABSPATH . 'wp-admin/includes/media.php');
+
+		// Check the type of file. We'll use this as the 'post_mime_type'.
+		$filetype = wp_check_filetype(basename($file_path), null);
+
+		// Get the path to the upload directory.
+		$wp_upload_dir = wp_upload_dir();
+
+		// Prepare an array of post data for the attachment.
+		$attachment = array(
+			'guid'           => $wp_upload_dir['url'] . '/' . basename($file_path),
+			'post_mime_type' => $filetype['type'],
+			'post_title'     => preg_replace('/\.[^.]+$/', '', basename($file_path)),
+			'post_content'   => '',
+			'post_status'    => 'inherit'
+		);
+
+		// Insert the attachment.
+		$attach_id = wp_insert_attachment($attachment, $file_path, $post_id);
+
+		// Generate the metadata for the attachment, and update the database record.
+		$attach_data = wp_generate_attachment_metadata($attach_id, $file_path);
+		wp_update_attachment_metadata($attach_id, $attach_data);
+
+		return $attach_id;
 	}
 
 	/**
