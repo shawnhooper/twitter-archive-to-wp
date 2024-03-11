@@ -18,6 +18,7 @@ class Import_Twitter_Command {
 
 	private int $tweets_processed = 0;
 	private int $tweets_skipped = 0;
+	private bool $skip_retweets = false;
 
 	private array $media_files = [];
 
@@ -87,6 +88,8 @@ class Import_Twitter_Command {
 
 		$this->post_author_id = (int) $args[0];
 		$this->skip_replies = isset($assoc_args['skip-replies']);
+		$this->skip_retweets = isset($assoc_args['skip-retweets']);
+
 		$upload_dir = wp_upload_dir();
 		$this->base_upload_folder_url = $upload_dir['baseurl'];
 
@@ -137,6 +140,19 @@ class Import_Twitter_Command {
 				$this->tweets_skipped++;
 				continue;
 			}
+
+			if ($this->skip_retweets && strpos($tweet->full_text, 'RT') === 0) {
+				WP_CLI::line("Skipping Retweet");
+				$this->tweets_skipped++;
+				continue;
+			}
+
+			if ($this->skip_retweets && ($tweet->retweeted || $this->is_quote_retweet($tweet))) {
+				WP_CLI::success("Skipping Retweet or Quote Retweet");
+				$this->tweets_skipped++;
+				continue;
+			}
+
 			if ( $this->does_tweet_already_exist($tweet->id)) {
 				WP_CLI::success("Tweet already imported, skipping.");
 				$this->tweets_skipped++;
@@ -199,9 +215,21 @@ class Import_Twitter_Command {
 		WP_CLI::success('Import Complete - ' . $this->tweets_processed . ' tweets processed, ' . $this->tweets_skipped . 'skipped');
 	}
 
+	private function is_quote_retweet(\stdClass $tweet) : bool {
+		if (isset($tweet->entities->urls) && is_array($tweet->entities->urls)) {
+			foreach ($tweet->entities->urls as $url) {
+				if (strpos($url->expanded_url, 'https://twitter.com/') !== false) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	/**
 	 * @param \stdClass $tweet
 	 * @param int $post_author
+	 *
 	 * @return int
 	 */
 	public function process_tweet(\stdClass $tweet, int $post_author) : int {
