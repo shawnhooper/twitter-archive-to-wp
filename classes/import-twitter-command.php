@@ -120,16 +120,46 @@ class Import_Twitter_Command {
 		}
 
 		do_action('birdsite_import_end');
-
 	}
 
-	private function process_file(string $filename): void
-	{
+	private function merge_tweet_threads(array $tweets) : array {
+		$merged_tweets = [];
+		$previous_tweet = null;
+
+		foreach ($tweets as $tweet) {
+			if ($previous_tweet && $tweet->in_reply_to_status_id_str == $previous_tweet->id_str) {
+				// Merge this tweet's text with the previous one, removing numeric indicators like (1/2)
+				$previous_tweet->full_text = $this->remove_numeric_indicators($previous_tweet->full_text) . ' ' . $this->remove_numeric_indicators($tweet->full_text);
+				// Update any other necessary fields
+				$previous_tweet->entities = $tweet->entities;
+				$previous_tweet->extended_entities = $tweet->extended_entities ?? $previous_tweet->extended_entities ?? null;
+			} else {
+				if ($previous_tweet) {
+					$merged_tweets[] = $previous_tweet;
+				}
+				$previous_tweet = $tweet;
+			}
+		}
+
+		// Add the last tweet if it wasn't part of a thread
+		if ($previous_tweet) {
+			$merged_tweets[] = $previous_tweet;
+		}
+
+		return $merged_tweets;
+	}
+
+	private function remove_numeric_indicators($text) {
+		return preg_replace('/\(\d+\/\d+\)\s*$/', '', $text);
+	}
+
+	private function process_file(string $filename) : void {
 		do_action('birdsite_import_start_of_file', $filename);
 
 		$tweets = $this->get_filtered_result_from_file($filename);
 		usort($tweets, static function ($a, $b) { return strnatcmp($a->id, $b->id); });
 
+		$tweets = $this->merge_tweet_threads($tweets);
 
 		$total_tweets = count($tweets);
 
@@ -210,13 +240,15 @@ class Import_Twitter_Command {
 
 			$this->id_to_post_id_map[$tweet->id] = $post_id;
 
-			$this->set_postmeta($tweet, $post_id);
-			$this->set_hashtags($tweet, $post_id);
-			$this->set_ticker_symbols($tweet, $post_id);
-			$this->process_media($tweet, $post_id);
 				if ($this->use_aside_format) {
 					set_post_format(get_post($post_id), 'aside');
 				}
+
+				$this->set_postmeta($tweet, $post_id);
+				$this->set_hashtags($tweet, $post_id);
+				$this->set_ticker_symbols($tweet, $post_id);
+				$this->process_media($tweet, $post_id);
+			}
 		}
 
 		do_action('birdsite_import_end_of_file', $filename);
