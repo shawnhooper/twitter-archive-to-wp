@@ -17,9 +17,6 @@ namespace ShawnHooper\BirdSiteArchive;
 use WP_CLI;
 
 class BirdSiteArchive {
-
-	private ?bool $has_tweets = null;
-
 	/**
 	 * Hook this plugin into WordPress' actions & filters
 	 */
@@ -35,7 +32,6 @@ class BirdSiteArchive {
 		$tweet_post_type = new Tweet_Post_Type();
 		$tweet_post_type->wordpress_hooks();
 	}
-
 }
 
 $_GLOBALS['BirdSiteArchive'] = new BirdSiteArchive();
