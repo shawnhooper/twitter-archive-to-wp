@@ -238,7 +238,8 @@ class Import_Twitter_Command {
 
 			$post_id = $this->process_tweet($tweet, $this->post_author_id);
 
-			$this->id_to_post_id_map[$tweet->id] = $post_id;
+			if($post_id) {
+				$this->id_to_post_id_map[$tweet->id] = $post_id;
 
 				if ($this->use_aside_format) {
 					set_post_format(get_post($post_id), 'aside');
