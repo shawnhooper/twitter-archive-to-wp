@@ -1,6 +1,8 @@
 <?php
 
 namespace ShawnHooper\BirdSiteArchive;
+
+use DateTime;
 use \WP_CLI;
 use WP_Query;
 
@@ -26,6 +28,8 @@ class Import_Twitter_Command {
 
 	private string $base_upload_folder_url;
 
+	private $since_date = null;
+
 	/**
 	 * Imports Twitter Data archive to WordPress
 	 *
@@ -37,9 +41,21 @@ class Import_Twitter_Command {
 	 * [--skip-replies]
 	 * : Skip tweets that are replies to someone else
 	 *
+	 * [--skip-retweets]
+	 * : Skip tweets that are retweets
+	 *
+	 * [--since-date]
+	 * : Skip tweets that are before the specified date
+	 *
+	 * [--post-type]
+	 * : Specifies the post type to import to. Defaults to birdsite_tweet
+	 *
+	 * [--use-aside-format]
+	 * : Uses the aside post format for the content.
 	 *
 	 * [--hashtag-taxonomy]
 	 * : Specifies the taxonomy to use when importing hashtags and tickers. Defaults to birdsite_hashtags
+	 *
 	 * ---
 	 *
 	 * ## EXAMPLES
@@ -53,11 +69,23 @@ class Import_Twitter_Command {
 	 * @when after_wp_load
 	 */
 	public function __invoke($args, $assoc_args) : void {
-		$this->post_author_id = (int)$args[0];
+		$this->post_type = isset($assoc_args['post-type']) ? $assoc_args['post-type'] : 'birdsite_tweet';
 		$this->hashtag_taxonomy = isset($assoc_args['hashtag-taxonomy']) ? $assoc_args['hashtag-taxonomy'] : 'birdsite_hashtags';
 		if (! taxonomy_exists($this->hashtag_taxonomy)) {
 			WP_CLI::error('Error: invalid taxonomy.');
 		}
+
+		if (isset($assoc_args['since-date'])) {
+			$parsed_date = strtotime($assoc_args['since-date']);
+			if (!$parsed_date) {
+				WP_CLI::error('Invalid date format for --since-date.');
+			} else {
+				$this->since_date = new DateTime();
+				$this->since_date->setTimestamp($parsed_date);
+			}
+		}
+
+		$this->post_author_id = (int) $args[0];
 		$this->skip_replies = isset($assoc_args['skip-replies']);
 		$upload_dir = wp_upload_dir();
 		$this->base_upload_folder_url = $upload_dir['baseurl'];
@@ -100,9 +128,15 @@ class Import_Twitter_Command {
 
 		foreach ($tweets as $tweet) {
 			$this->tweets_processed++;
+			$tweet_date = new DateTime($tweet->created_at);
 
 			WP_CLI::line("Processing Tweet $this->tweets_processed of $total_tweets");
 
+			if ($this->since_date && $tweet_date < $this->since_date) {
+				WP_CLI::line("Skipping Tweet as it is older than " . $this->since_date->format('Y-m-d'));
+				$this->tweets_skipped++;
+				continue;
+			}
 			if ( $this->does_tweet_already_exist($tweet->id)) {
 				WP_CLI::success("Tweet already imported, skipping.");
 				$this->tweets_skipped++;
