@@ -254,7 +254,7 @@ class Import_Twitter_Command {
 
 		do_action('birdsite_import_end_of_file', $filename);
 
-		WP_CLI::success('Import Complete - ' . $this->tweets_processed . ' tweets processed, ' . $this->tweets_skipped . 'skipped');
+		WP_CLI::success('Import Complete - ' . $this->tweets_processed . ' tweets processed, ' . $this->tweets_skipped . ' skipped');
 	}
 
 	private function is_quote_retweet(\stdClass $tweet) : bool {
