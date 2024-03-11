@@ -72,6 +72,11 @@ class Import_Twitter_Command {
 	public function __invoke($args, $assoc_args) : void {
 		$this->post_type = isset($assoc_args['post-type']) ? $assoc_args['post-type'] : 'birdsite_tweet';
 		$this->hashtag_taxonomy = isset($assoc_args['hashtag-taxonomy']) ? $assoc_args['hashtag-taxonomy'] : 'birdsite_hashtags';
+
+		if (! post_type_exists($this->post_type)) {
+			WP_CLI::error('Error: invalid post type.');
+		}
+
 		if (! taxonomy_exists($this->hashtag_taxonomy)) {
 			WP_CLI::error('Error: invalid taxonomy.');
 		}
