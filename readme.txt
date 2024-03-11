@@ -36,7 +36,7 @@ This plugin doesn't need more than that at the moment.
 
 1. Install and Activate this plugin
 1. Unzip your Twitter Archive
-1. Copy the data/ folder from the Twitter archive to the wp-contents/uploads/twitter-archive folder. (read privacy note above)
+1. Copy the data/ folder from the Twitter archive to the wp-content/uploads/twitter-archive folder. (read privacy note above)
 1. Run `wp import-twitter <post_author>` where <post_author> is your WordPress User ID
 
 == Actions ==
